@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Progress Report Card Maker</title>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Layout: top tabs (School / Students / Report cards). Report card is a fixed A4 sheet copying the school's printed card. */
+        :root {
+            --ink: #1c2430;
+            --muted: #5b6672;
+            --bg: #eceff3;
+            --paper: #fff;
+            --line: #cdd4dc;
+            --blue: #1f3c88;
+            --blue-soft: #e6ecf8;
+            --red: #d3202b;
+            --good: #1b7a4a;
+            --body: "Noto Sans Devanagari", Arial, "Segoe UI", system-ui, sans-serif;
+            --display: "Anton", "Arial Narrow", Impact, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 14px/1.45 var(--body)
+        }
+
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 14px
+        }
+
+        header.top {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px
+        }
+
+        h1 {
+            font: 700 19px var(--body);
+            margin: 0;
+            color: var(--blue)
+        }
+
+        h2 {
+            font: 700 16px var(--body);
+            margin: 0 0 10px
+        }
+
+        h3 {
+            font: 700 14px var(--body);
+            margin: 16px 0 8px;
+            color: var(--blue)
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap
+        }
+
+        .tab {
+            border: 1px solid var(--line);
+            background: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font: 600 14px var(--body);
+            color: var(--ink)
+        }
+
+        .tab[aria-selected="true"] {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff
+        }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px
+        }
+
+        .panel[hidden] {
+            display: none
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        input,
+        select,
+        textarea {
+            font: 14px var(--body);
+            padding: 7px 9px;
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            background: #fff;
+            color: var(--ink);
+            min-width: 0;
+            width: 100%
+        }
+
+        input:focus,
+        select:focus,
+        button:focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 1px
+        }
+
+        button {
+            font: 600 13px var(--body);
+            padding: 8px 13px;
+            border-radius: 6px;
+            border: 1px solid var(--blue);
+            background: var(--blue);
+            color: #fff;
+            cursor: pointer
+        }
+
+        button.ghost {
+            background: #fff;
+            color: var(--blue)
+        }
+
+        button.danger {
+            background: #fff;
+            color: var(--red);
+            border-color: var(--red)
+        }
+
+        button.sm {
+            padding: 3px 8px;
+            font-size: 12px
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: wait
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 10px 0
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 12.5px;
+            margin: 6px 0
+        }
+
+        .scroll {
+            overflow-x: auto
+        }
+
+        .subj {
+            display: grid;
+            grid-template-columns: minmax(140px, 1fr) 90px 90px auto;
+            gap: 6px;
+            margin-bottom: 6px;
+            align-items: center
+        }
+
+        .subj .acts {
+            display: flex;
+            gap: 4px
+        }
+
+        .subj-head {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 600
+        }
+
+        .logo-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .logo-row img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: #fff
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 270px 1fr;
+            gap: 14px;
+            align-items: start
+        }
+
+        @media (max-width:820px) {
+            .split {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .list {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            max-height: 640px;
+            overflow: auto
+        }
+
+        .list button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: #fff;
+            color: var(--ink);
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            padding: 8px 10px;
+            font-weight: 400
+        }
+
+        .list button[aria-current="true"] {
+            background: var(--blue-soft);
+            font-weight: 700
+        }
+
+        .list small {
+            color: var(--muted)
+        }
+
+        .photo-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 12px 0;
+            flex-wrap: wrap
+        }
+
+        .photo-row .ph {
+            width: 66px;
+            height: 80px;
+            border: 1px solid var(--line);
+            background: #f2f4f7;
+            object-fit: cover
+        }
+
+        table.mt {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 560px
+        }
+
+        table.mt th,
+        table.mt td {
+            border: 1px solid var(--line);
+            padding: 3px 5px;
+            text-align: center;
+            font-size: 13px
+        }
+
+        table.mt th {
+            background: var(--blue-soft);
+            font-size: 12px
+        }
+
+        table.mt td.l {
+            text-align: left;
+            white-space: nowrap
+        }
+
+        table.mt input {
+            text-align: center;
+            padding: 5px 4px;
+            width: 100%;
+            min-width: 52px
+        }
+
+        table.mt input.over {
+            border-color: var(--red);
+            background: #fdeeee
+        }
+
+        .sum {
+            margin: 10px 0;
+            padding: 8px 10px;
+            background: var(--blue-soft);
+            border-radius: 6px;
+            font-weight: 600
+        }
+
+        .pass {
+            color: var(--good)
+        }
+
+        .fail {
+            color: var(--red)
+        }
+
+        #msg {
+            position: fixed;
+            left: 50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            background: #1c2430;
+            color: #fff;
+            padding: 9px 14px;
+            border-radius: 6px;
+            max-width: 92vw;
+            z-index: 50;
+            font-size: 13px
+        }
+
+        #msg[hidden] {
+            display: none
+        }
+
+        .pv-wrap {
+            background: #cfd6de;
+            border-radius: 6px;
+            padding: 12px;
+            overflow: hidden
+        }
+
+        .pv-box {
+            transform-origin: 0 0
+        }
+
+        /* ---------- Report card (A4) ---------- */
+        .rc {
+            width: 210mm;
+            height: 297mm;
+            background: #fff;
+            color: #111;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 2px solid #222;
+            font-family: Arial, "Noto Sans Devanagari", sans-serif
+        }
+
+        .rc * {
+            box-sizing: border-box
+        }
+
+        .rc .strip {
+            height: 7mm;
+            flex: none;
+            background: repeating-linear-gradient(90deg, #e8454a 0 6mm, #f4a23a 6mm 12mm, #f4d949 12mm 18mm, #6bbf70 18mm 24mm, #4aa3df 24mm 30mm, #8a6ad6 30mm 36mm, #e86ab0 36mm 42mm)
+        }
+
+        .rc .strip.thin {
+            height: 3mm;
+            margin-top: 1mm
+        }
+
+        .rc .hd {
+            display: flex;
+            align-items: center;
+            gap: 4mm;
+            padding: 3mm 5mm 1mm
+        }
+
+        .rc .hd img {
+            width: 27mm;
+            height: 27mm;
+            object-fit: contain;
+            border-radius: 50%;
+            flex: none
+        }
+
+        .rc .hd .t {
+            flex: 1;
+            min-width: 0;
+            text-align: center
+        }
+
+        .rc .sc-name {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            font-family: var(--display);
+            color: var(--red);
+            text-transform: uppercase;
+            line-height: 1.05;
+            font-size: 46px;
+            letter-spacing: .2px
+        }
+
+        .rc .sc-addr {
+            font-weight: 700;
+            font-size: 20px;
+            margin-top: 2mm;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden
+        }
+
+        .rc .bar {
+            background: #1b1b1b;
+            color: #fff;
+            font-weight: 800;
+            font-size: 21px;
+            text-align: center;
+            letter-spacing: .5px;
+            padding: .6mm 0;
+            margin: 2mm 0 3mm;
+            text-transform: uppercase
+        }
+
+        .rc .info {
+            margin: 0 5mm;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 3mm 4mm;
+            display: flex;
+            gap: 4mm;
+            flex: none
+        }
+
+        .rc .photo {
+            width: 33mm;
+            height: 40mm;
+            flex: none;
+            border: 1px solid #999;
+            background: #f1f1f1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 10px;
+            text-align: center
+        }
+
+        .rc .photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover
+        }
+
+        .rc .fields {
+            flex: 1;
+            min-width: 0;
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            column-gap: 6mm;
+            row-gap: 1.6mm;
+            align-content: space-between
+        }
+
+        .rc .f {
+            display: flex;
+            gap: 2mm;
+            align-items: flex-end;
+            min-width: 0
+        }
+
+        .rc .f.w2 {
+            grid-column: 1/3
+        }
+
+        .rc .f b {
+            font-size: 11.5px;
+            font-weight: 700;
+            white-space: nowrap;
+            text-transform: uppercase
+        }
+
+        .rc .f span {
+            flex: 1;
+            min-width: 0;
+            border-bottom: 1px solid #333;
+            font-weight: 700;
+            font-size: 12.5px;
+            min-height: 5mm;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-left: 2mm
+        }
+
+        .rc .banner {
+            margin: 3.5mm 5mm 0;
+            background: var(--blue);
+            color: #ffd23f;
+            font-weight: 800;
+            font-size: 16px;
+            text-align: center;
+            padding: 1mm 0;
+            border: 1.5px solid #111;
+            border-bottom: 0
+        }
+
+        .rc table {
+            margin: 0 5mm;
+            width: calc(100% - 10mm);
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12px
+        }
+
+        .rc th,
+        .rc td {
+            border: 1.5px solid #111;
+            text-align: center;
+            height: 7.6mm;
+            padding: 0 1mm;
+            overflow: hidden
+        }
+
+        .rc th {
+            color: #fff;
+            font-weight: 800
+        }
+
+        .rc th.hr {
+            background: #d62f2f;
+            font-size: 17px
+        }
+
+        .rc th.hb {
+            background: #1a5fb4;
+            font-size: 13px;
+            height: 6.4mm
+        }
+
+        .rc th.hs {
+            background: #d9468a;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 10.5px;
+            height: 6mm;
+            line-height: 1
+        }
+
+        .rc td.sb {
+            text-align: left;
+            font-size: 12.5px;
+            padding-left: 2mm;
+            white-space: nowrap
+        }
+
+        .rc td.n {
+            font-size: 13px;
+            font-weight: 600
+        }
+
+        .rc tr.tot td {
+            font-weight: 800
+        }
+
+        .rc td.rm {
+            vertical-align: top;
+            padding: 1mm
+        }
+
+        .rc td.rm small {
+            display: block;
+            font-size: 10px;
+            color: #444;
+            font-weight: 400
+        }
+
+        .rc td.rm strong {
+            display: block;
+            font-size: 15px;
+            margin-top: 2mm
+        }
+
+        .rc .gap {
+            flex: 1
+        }
+
+        .rc .sign {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 6mm 5mm;
+            font-weight: 700;
+            font-size: 12.5px
+        }
+
+        .rc .sign span {
+            border-top: 1px solid #111;
+            padding-top: 1mm;
+            min-width: 42mm;
+            text-align: center
+        }
+
+        .rc .sign.top {
+            margin-top: auto
+        }
+
+        .rc,
+        .rc * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact
+        }
+
+        #renderHost {
+            position: fixed;
+            left: -12000px;
+            top: 0
+        }
+
+        #printArea {
+            display: none
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0
+            }
+
+            html,
+            body {
+                background: #fff
+            }
+
+            .app,
+            #msg {
+                display: none !important
+            }
+
+            #printArea {
+                display: block
+            }
+
+            #printArea .rc {
+                break-after: page;
+                page-break-after: always;
+                border-width: 2px
+            }
+
+            #printArea .rc:last-child {
+                break-after: auto;
+                page-break-after: auto
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <header class="top">
+            <h1>Progress Report Card Maker</h1>
+            <div class="tabs" role="tablist">
+                <button class="tab" role="tab" data-tab="school" aria-selected="true">1. School &amp; subjects</button>
+                <button class="tab" role="tab" data-tab="students" aria-selected="false">2. Students &amp;
+                    marks</button>
+                <button class="tab" role="tab" data-tab="cards" aria-selected="false">3. Report cards /
+                    Download</button>
+            </div>
+        </header>
+
+        <!-- 1. SCHOOL -->
+        <section class="panel" id="tab-school">
+            <h2>School details (printed on every card)</h2>
+            <div class="grid">
+                <label>School / college name<input id="s-name"></label>
+                <label>Address line<input id="s-addr"></label>
+                <label>Card title<input id="s-title"></label>
+                <label>Session (shown as "Mark Sheet- ...")<input id="s-session"></label>
+                <label>Minimum pass % in each subject<input id="s-pass" type="number" min="0" max="100"></label>
+            </div>
+            <div class="logo-row" style="margin-top:12px">
+                <img id="logoPrev" alt="School logo">
+                <button class="ghost" id="logoBtn">Change logo</button>
+                <button class="ghost" id="logoClear">Remove logo</button>
+                <input id="logoFile" type="file" accept="image/*" hidden>
+            </div>
+
+            <h3>Subjects and maximum marks (M.M.)</h3>
+            <div class="subj subj-head"><span>Subject</span><span>Half Yearly M.M.</span><span>Annual
+                    M.M.</span><span></span></div>
+            <div id="subjects"></div>
+            <div class="row"><button class="ghost" id="addSubject">+ Add subject</button></div>
+            <p class="hint">A subject counts for a student only if at least one mark is entered for it. Leave a subject
+                blank for students who do not take it.</p>
+
+            <h3>Backup</h3>
+            <div class="row">
+                <button class="ghost" id="exportBtn">Download backup (.json)</button>
+                <button class="ghost" id="importBtn">Restore backup</button>
+                <input id="importFile" type="file" accept=".json,application/json" hidden>
+                <button class="danger" id="resetBtn">Erase everything</button>
+            </div>
+            <p class="hint">Data is saved inside this browser on this computer. Download a backup regularly and keep it
+                safe.</p>
+        </section>
+
+        <!-- 2. STUDENTS -->
+        <section class="panel" id="tab-students" hidden>
+            <div class="split">
+                <div>
+                    <div class="row" style="margin-top:0"><button id="addStudent">+ New student</button></div>
+                    <input id="search" placeholder="Search name, roll or class" aria-label="Search students"
+                        style="margin-bottom:8px">
+                    <div class="list" id="list"></div>
+                </div>
+                <div id="stForm"></div>
+            </div>
+        </section>
+
+        <!-- 3. CARDS -->
+        <section class="panel" id="tab-cards" hidden>
+            <div class="grid" style="align-items:end">
+                <label>Class<select id="fClass"></select></label>
+                <label>Student<select id="fStudent"></select></label>
+            </div>
+            <div class="row">
+                <button id="pdfOne">Download PDF (this student)</button>
+                <button class="ghost" id="pdfAll">Download PDF (all shown)</button>
+                <button class="ghost" id="printOne">Print this</button>
+                <button class="ghost" id="printAll">Print all shown</button>
+            </div>
+            <p class="hint" id="cardHint"></p>
+            <div class="pv-wrap" id="pvWrap">
+                <div class="pv-box" id="pvBox"></div>
+            </div>
+        </section>
+    </div>
+    <div id="msg" role="status" hidden></div>
+    <div id="renderHost"></div>
+    <div id="printArea"></div>
+
+    <script>
+        (function () {
+            var KEY = 'wnic-report-card-v1';
+            var LOGO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBj/wAARCADIAMgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7+ooooAKKKKTAQikI4pc0hYAc1m0gCkOAMmmlx3IAHc1xvin4k+E/C8Ek2oatDvTjyw3OalU2+gudHYyFDGQysR9Kqyk26B9kUa/3mbFfJfjD9sCKfWpNG8LWEksyyeUCO5rzrWvGHx91zS5dWma4t9N3dQSABn61apN9CJVUj7suvEOlWiZuNasICP70wFZj/EHwVbxH7R4qsAe4My18S3Pwj+IfiLwHD4svPFU6W0gzgSnj9ax/hX8Jrn4malq2nHxBcLJpgzKxcnPX/Ct4UWjP26eh9123j/whdy7LDxRp8jE4CtMuCfSukttUsZ7cEXtpIf8ApnJkV+ani/4eXfhbXrKws/EFx/pMojBSQgqTXoFx8NPi34X0Q3ek+KLqYxwiba8pPGM+tazpuxCqq9z7zS6+Qv5EhX1UZzSo9vMNxRl/3+K/N7wt+1T8V/D2sf2bqzrc28MmyQFctx719J+Cv2sPDGrwyaf4itXsLyPaMvwG3dD0rm5H2NlVR9KqCG+U/Ljin1z3h3xVo+v6Ytxpl/FcAjhVYZrYS5R+OVb+6adrblKV9iwOtLTEyRkjHtT6CkFHeiigYUUnelpJgFFFFMAooooAKQ5yBjil701nCkCkwFJycVk6xremaNYzXl/fRRLEpYhmxWX428caR4I8EXPiHWLlIYkU7FY4LHsP0r82vi3+0BrfjbXLs6ReTR2RbaUDHkZqoU+ZmNWpZWR7f8V/2pPEF7q0nh3wXGd8jeWsiZwa8Y8K2WreKvjtp/hz4n6jdWJumD7mOA2eQOa9i+B/grwN45+FUWp6bcxHxHbEPIrnLAj611fxj8D6RPpfhn4hQXNs8uizqt+0RAYgEADj0wa9GNC0b3OB1bM83+N/wUuPhf4nPivwXNJcW6MJXjxkp7HFdZLqnxA1P9lZjFHvkuAWwRyOc0fF39pLQLG5lt7KCPUbXUUBVSM7eMf0rxq4/aB8Y3ehJpFhHDbWKk4TYBwaIx5VqZTqXeh7f8M9W1LVv2Xrrw7qCxNqsDnajMcjisn9nWWbwP8AFHxHpeu+RAL6EYYtj+E/418vHxb4lsNau7qLVJoftBJEaOQKp3HiPU7nWPtkurXIuiuNyyEdqemzJjCUtYnvnxL0y/h+MWiXKtbyab9tUuysTtWvoLVPFnh3VPD+oN4evIp7i1sgHiDZ6Jz/ACr8/wBde1K+AjudUuZJYm3LukNaum+I9f0Waa70y9cCdCkqls5GMVSaE4zidJ8M9Hk8f/GlNPWIYurzY6kfd5zX0BrHw28HfEj9o+68LaVC9lHYWyLLLGAFLqg/qK+avhv41k+HnxDt/FiQGfy38yRF45r2r4TfGDS7HVr7V7h1Gp6tdAhz1QFjx+RoVK6F7WSMGGL4p/CHx5rb6LcTXmnWNyyquScqDX0z8I/2lPDXjf7PpPiYf2RrP3QZ/lDn8a4P4+a9Y+G9BsBpc0dxqGrMJGC853VD4o+HfgzWPhRpOr3Vwnh7xKkfmKRwZD1HpXNUoX2N6eKa3PsS2k8yIv5iyKT8rKc5FT18UfBX476z4H1k+F/H/wBomsZ7kxW97JnC+hz6V9mWOo2epWEd7Y3CTQSLuV0OQa5ZQcdD0KVZTVy3R3xSA5XJpe9ZvQ3EJpR0o+tFJIBDRSk4oobGgoopM1YhaxvEmuWHhvQLnXdTmEdtaIXck4rVeQKcHv3r4v8A2tvi0114g0z4c6IzkSS4v3Q8bD0/WqhFykkY1KiSseY/EX4i3vxx+MFp4f1a9l07wu0oSGXO1W5xXGfEv4H6r8N/EcMMdu91pt0A1vdKMq4PTmvpXUfg3oGofBHSLbR0SW7ghFx9vi52kdjisPS/iMdE8FPpXxP0w6jZWR22s7DkYPHP4CvWo0ElqebWq9j5y8FeJvEXwO8fpqM+n3UdteLgoR8rKTU3iL4h65r2p62miXssGgansKwSt92TOXwPrTvid4/l8d+N4XgiiGlw8QIFHyjNY+geEtW8T/bJbC3dLazBdnUfLW05JaI5U29zJFnDaBIJBLqV6Vwqr82DVyLw34g1PVLPT3tGs55WARCME171+yx4N8La14mu9Q168tmkticCZgBkfWovjfpp8N/FhPFWl6tbSWtu4ZIItuOPpXHUmkax3KHjD9nSz8GfBtvGPirWGgvBHuSIHk8Z9K+b9FtEv9WbfL+7PKknqO1fUXi39pyx8e/D8+HtY8NtOVTaG5weMelfOMunTSX3n6dC8SOTtUL09q5KldXR6OFSV7lK6s4dP15WaUmMN8xHpX0Lpf7PkXjj4THxj4L14XE0abpLPdluOvGK8Ji0u8tb37RqFvLIqnJUr1FfQXgX9o/SPhp4ZNnp+gONyYYZOD+Fb0ppkV1fY8U0jw34ovNS1C0t9GlL6cpa5QryQODWRbXFjbambYJNbagj5EbcYOa+lPg34rs/F3xiufE91qNrZWl65Etq4UBgTnBrR/ac+EHhq11Kz8Y+F7myV5T8yQup549K6edI4HF9Tw608W6gfGmlal4tkea0sSCqMc8CvYvDkmtftA/GJpnjeHQdNjVkYcKAFzz+VeI+KPDOveGNOtNZ1y0eexuwAsgHC5rd+F/xK1D4a6+J7VzNpN+hWeJeOMY6/jT+IykrH078YY/A0fg+LR7+whjgjtglvfxAZM46jP0rhvgJ8fbvwXr8fgrxiky6dK+y1uJenJ45NSeGNF074nail42oi20JLkypBK+47/xrv/iL8O9A8X/De7j0rTbe1vdKiLxXQO0ttGf6VnUoNm1CqoqzPqO1uI7u0iurd1eGVQ6Mp6g1Yr5C/ZM+NU+pwy+BPE9zm9t5TDDJI3UDoK+uVk3SMuOnT3rzZxaPYpTUldDxS0gzjJ60ZrK9jUD1oo60VDTYxaQ9OKWmSuEjLFtvvWwjgfix40/4QX4Uavrszqs8cLeUvvjivjb4J+DLr4u2vib4ga0WubvpDDnLDLYyPzrvP2wPGIv/ABtoPw4t7ryxejdOwP3Ruxz+dcFpem/Fb4BeLLWbwmTqWhX0KNKqLuVuM44FdVGDumjza7XMdL4S8ReO/hF4tn8PyW7614f5M0LDcY179eK8r+MXxVi+Inir+zNJsV0/SoyQ8YAHI69K9M+JXx00608Fagp0H7Hr+oxlC7A/KSMd6+VNOMsSvdTxs88xZ39816baicMtS/8A2Nq0+iyXmhWG60gbElww4FfY3wCi+Htp+zRJDr2tWEF/ftIk56MBnj+dVPhP8MfD3jL9kO7tvtSWs92DO0uRleCMV87eIvC2naV4jTwd4UuZrnZhXKOTlu/euWpOxrTp3LXj3Q/D/h3xNJpfw61vVLmSaTLtaTYBrr/AfwO8aeOJIftz3htWxk3Lbm98mvYPgV+zXaW9nB4h1uJ/tBwcSZJP519X2OlWOkWK22n2scSKOABXn1ql9Tup4Y8B8O/speGNKskN80ckmMtgdKyPHvw++GHgNbGN7MO7SfNgD1r6gzmP5/Tmvlf4vz/2h4weKZGaOI/KMV5WKxChax6eEwsZNnpOifCr4U+LdAiu7TTY3DIN2AMj9K53Xf2TPBGp2kkdriJmzjI/+tS/AjxPDBNc6VeOYgfuFule/ptxleh5z61vh8XdEVqCi7H51fET9l/xd4Kknu/DBuZUQFkWA4LfSvJvDOuvZeKY9H+Iuq6xHAsgDxzS5Cc1+tdxFDcLtmiVx/tDNfMvx9/Zm0TxNplz4g8O26217tLSog+99K7VW5tTz6lIm1nTPAHjT9l2+0uw1fT7yFLbNtIxy8bYGK+FZ9I1XwpprNqVu0+mvIUW4QZAGcU/w1P/AMK4+LFtpPim3ul0wz7JUaVwpHTpmvsrw78LPDGrfs36zp9rfQalG4a5glYgtH1bb+td1KomcNSnbY+S/DHiS68O6tZm01SU6UZfNdAx4zXpHjn4m694o1S10zwBqUsdvKgjnVSeegPSvGLZJNO1m80WbAaKQqgYdRXvH7M9v4ff4gTRazFD9oCExROeGOOK61Pm0MOWzucn/wAK8+IvgS5t/Glhpdysds4uJLhRw57ivvn4OfEux+KPw1stat2RLxFCXEQ6ow4/pXz1YfFTxS/x71bwP4wES+GpYmjsrQICA3POcZ6Vxv7NXjw+BPjnq3he+BW0vrhhCrHAXJ4x+defiIanoYWpZ2PvxRJuJYgjtilPNCsGUOpyCMikB46V51TRHpoMkECig9RRSUgsPqvezRW1hLPOBsjUsc+1WK5n4gX6aZ8NdYvXOBHbtz9eK3REnZH5v+MvGmnat+114j8VeIYZ73SraUwQLHk7OB0/KvrLSviX8O/GXw4XSfC2qxx6nb2wZYLpSSpx0yQPSvnP9n/UfBUvizWrTxlBCxvLoujy9PTHNe3/ABL8G+DvCnwlv/Fmj+Gre4Y52TwFvlGeOhr1cPDRankV6iufHXxAutd1jx/cRayImMbnYY8Yr0X9n34Zr8QvFuqNOQ8em2rsY+uSykL+teMm6F091fhWWWWTaiE/dzX0P+zl4zj+DWvapD4ktGM2sW0bWsmPvkZYirndJswjZvU5LVbr4j/Dv4fQaT58umQSSFPKJwSuT6V6d+y78KZdZ8Xf8JZqgM8ed5Mgzk15n8T/ABrq3xY+L9np32crbLIEEYGAOa++/hD4RTwh8ObKy2Ksjxhjge1edVm2d+HjrY7yONIYxFFEERRgBRgClPSlzximmuCrI9JIq30jR2rMteIatoL+KvE88cSxBkPO7Fe4XZh8opMwUH1r54u7a5/4T/UTZ3LxbPm4PXrXi4mMpM66E+RaEDaFceFfE8cUyxpvI5GOea+kLL5tPgOesa/yrwmfSbfUbTS9V1WZiZJxEcnp3zXuNvcwR2cEcLqwCKBz2xW2FVtzOtPmepcZMqQKrTkRQbJl3o3BzVoMCM5qAg7vnYsPQ16Sdlocs0fIn7V/wEh1/RJ/GGiWQ3WkZmkWMYJr5v8AgT4n8XT6zc+DrPWHj8zKfZ3Y/lX6ganaRalpVxp0oBjnQoQelflP8VtCuvhN+0fNcacGhlWfzEkHGec4rppVEnocVSB6X8WvgtqPhn4S6l45ukMd/bSE4A6jj/GvGNI124trmz8QaddywXiAZCkjmvp7xF8cH8cfswXuiatpO2/kh2JIATvPHNfL2lQSaZNPpWpoyTSruiZhgjivWoSTVzinY+vPDkHhmz+GVn8WPHMj3N2X8uJEBJ3Y79fWuZ+KNh4Qn0LQPil4QR7aZZQ0iYwfvfT2qj8DfGOs3ulDwjc6NDrMELlgk+cenau6+JHgPxT4r8EO1umnaPYW/wA32WKQ/wAjV1abauKjOzsfTXwy8SR+K/hjpero4YvCqtz3AGa67FfMH7IfiWabTNV8JXEgY2BypznPOK+oMcV41aGp7VKV4idqKXtRWLRpcM15x8dZlT4BeJWMmwC3Hzf8CFej44ryz4/kD9n/AMTh87fs4zj/AHq3pa7mNZ2R8a/BHwl4N8d6Jc2uswXljf7yIbyNWK57dBXoXj3wl47+Hnwk1OyuPEcGpaGyExxyMN2O3BOfSsH9lTxdqGk+HbuLUbnT30/ef+Pk4ZRz0q9+0Tqnw/1jQJriz8WzNe7ci0ikBjJ9K9yhDRM8Os9T5HgeT+w0vZxh1uQ2F9K/QLwx4E8BeNvg74e8dak8UUmm2z8uQMkJjFfCGkxxTQWO6IJHcTCLB9z1r6Rsvh749n0u28EWWp3baHJA10ZlP3crux+lOvF20Cm1fVHCfDWez1/9pifyEAtkucIV54Br9LrJFi0y3jTOFjUDP0r8zf2erdNK/aCGlghmt7sJI56nnrX6cJjy0/u7Rg141bRHp4dEmeK5zxj4ii8OeHJb6RgpA+WuhYEcLyO+a+efj94uS41Oy8G2DI8zODKQeQDivMqPWx2zlZXO38A+Jbrx0JpJ9yRx5wfWtLXvBUMdtcXtkM3DKcmrXw70qw0TwbaW9sytI0YaRu+a6mZ0lt5CpBGDWE4cyEqulzzrwx4Ul1Lw3Db6k+0Qzb8fhW94k0vUbbTZLrSGJ8qPhc9cCpvDszS3F3iQEKxAUVsvqFtb4t5nHz8c1dKCS1MvbX3PJ/hX8Wm8Q+KLrwpqoMd3ExC7uCe1eyMw3Yz0r5T+MWkTeBPiRb+PtCYI4cO0cXQ896+hfBviuz8X+B7PXbGRZGkVRKoOdp71pF30BO+h0cz7RuAyRXxV+3P4JspPD1n4vsISLoN+8IGO9faspCncpGMZB96+ef2vLUS/AuWaR9/lnJBremjKqeR/sxReEPiP8OZ/DmqvAurRRgxqxAJ5FecftKaZY+H/ANoa20+yt1SCGHBKdCdorL/Zr8G3viu78Q6j4avpdP1eysBNamE43Pu6VS+J2i+NFOkeKPGLub65d0ZH9Fbbn9K9fDbHn1Nzuv2efE0eh+ONQmdMmdDHGCO9ReIbj4x634l1KCwt9SawMhxgNjFZ3wYu9PsfjFpsl5Cr27kZB6A817D48+O/xM8L+P8AUNO8NaLbvpke3a2w+ld9W/JoZUviMv8AZKur7RPjJqGh6nE8N3MmXV+p5r7or4F+BPibVfEX7UMXiTV4Ut7qf5XiQYHfmvvkcivGrLU9ui9APSig9KK5WbCA5Fef/GO2N38GtfgEQkL2+ApOM816Aq471ieK9Lj1XwjqFlJkrJEwI/CtaDtuY103HQ/HlbjUtNuL2ya6mtk8xvkikOOvtXRaB4F1fxPpVzewBpooU3MzSZb8q7Lw98NofF/7RGoeDy32U+acF+Aea+j9A+AWi/D9tSvbvXruRLaBvMt4X4bIIHGPWvocNKPKeHXVnc+Jwbg+HkkVSjWUwwPcV9ufDb49eHbf9n1o7pV/tmK3MSBl5fK4HNfGOo28kOranbW4k8mOYsqy9WHvX0p8Gvh34O+Kfgu02TyWWr2bgyQwkKrjI6j8KK0eZaipzSPCvhl4hu/Dn7RBvtRQxNe3fmDcMcE1+rum3Md1otnPGwZZIUYEHPVRX5mftQ6DB4E+O2lXOmIixxQ5ZT7N1r7o/Z48YweMvgbpt6kweeMFHQHlccCvCxEeh62Fmmz0+9adNOna3XMgQ7B718a3Wna7D8VNS8R+IdPuJWViI/lJGBnFfWOoauIdWitxPtY9Vz1qzOum3Ue27tYZM9Qy9a8mq9T0p4eUony7a/FfVrC2mYRTQpnCqwIxXTeFvjzYQTjS9XZgZB/rG6c17U3hjwZfgpLoOnyeoeMVw3jv4FeFvFOjZ0i2i027hy0ZhG0E+9Zxkr6HLUw80rGPb/EbRNEuLqZL5WEuSADXF6t8YEkuy0twQmflIrM0z9nzXRrCnWtRKxBsBVJ5Fes/8Ku+H3h21t11OxivJSv/AC0APNVzomOEmeVX/jKPxBp5S4sJr6JhgYUmum/Z3XWfDF/e+HNSikW0mYyx7h90HJA/WvTPDWg6LBdvJaaTbQWi9NqYFbd1eaVZBZraztvtBbGcdqXOo6myws0bcs0ZiEIzuB4r56/a/wBRis/2fLmJz88jhBn3Ne8rq9mRG8qoJT0Ar47/AG4fF9nL4ctPDmnyB5pJFeVSc7cHtXXRfNsc9aLjueJ/s4eK7z4Z+N7fX5Y5G0oRg3zL0CZ7/jXbftRfFDQvGviDQYNDRRaxozZUYHJBrV/Zf8KaX49+G/jHwtdiL7Te2AgRnH3DvByPyrjPj14U8NeBPE1j4Y04faLiNNrucEg8V7OHi0eZVaKfwmMSfFTS5bpd1vkGvrW1+IHw7m8WXmi6npKMWeNDIy+30r5f+C/hWTxF41tLSa5ltbeE7zKhw2K+i7/4X/DfxKt9b+H/ABfep4hnTdCksowXUY7D1rvqu0DGn8Ry1jDo+nfttwQ+HogunPaxyLtHG4k5r7QX7g+lfBHwV0XV1/aRew13UTdXGnt5DlCTgqSO9fe68Io9q8ev8R7WHaaFPSiiiuZnQNBOaZKu9GUjIIIp9I33CBShLUU43R+ePxonuvhh+2TpOuLbva2M8geWZRgFdwzXtifFmz8Uai6eEtHuNVW6XZI2wkEjr61N+2f8P4/EfwRbxPbW8kmqaXyoj6FOSc1yX7PV+uufstCDwjqOn6T4ghbM0si4ccjPT8a9nC4hLQ8bFUup4D8ZLDXdC8byX194ZmsLSc8sYyF5/Csz4TeLfFHhP4iw3PhVyxn6x54Ne+fHTxl4T1P4ML4f17Xjf+IoeGkR+Cea+RLXUdQ05rO/0KeX7VaOHzGcZA7Gu+V2tTiSPo/4neBPEvxZ0rWvF2qW8kMul6fJKwK9cc1lfsefGJvB2sy+HNakKWtwwjjDnHOea9h8A/tDeEPHHwQ1fSNcW20zW5bF4JUVNokJXHSvkLxD4I8UaDpsPxA0yEyWcd04QxD5QA3UivIxNNu7sehh6kYWuz9J/ExjfxbaataXQaFwGwDWL4k8U6kni6xhtUcW54c9q8I+Bfxf0Lx7dWOleKdYNpcoAqBW2jPvX1ze+GNOudGQQhJCBuSVepHbmvm69ObkfUUMZT5Vc5i7v9Th122S0DMjqCcVqWmu3WRGEdpskEAVJpWqaJaKwvLmIXcQ2bWqWxhs5NaN/b3SKjdieK5eSSZs8RTkmYd5rF8viJGu4JBApyeDVLxLKmq6lBcwOWiXoBXe6hpVnq9lMDPl9pGYzjFedaRc6Jpd5NbXt03nW7HIkORgmtOVmca9Pqa2neJIpIJNKSMxuoxnpWRHBqFwHuTuKoxx+dGr+JvAaXSSwaikdzJw+04xXZQzafY6FHuZJbZ13mQdh1qHCTZnVxNNr3TzUeI5LLWXfUH2RRqSC3FfDfxW8VJ47+PzWqSb4XnESnPA5xXtn7SPxj0S1ujoPg9/Ovj8shJzivA9J+G/iGz8PQ/EbUV2Wa3KSFiOc7vWvawNJ31PFxNVM9mi0Lxh8CtasJNAhlkbVYA25BkAHnmvFvEV7ret/EO51rX3aWcN0btX0x4r/am8FD4aWVhpmkpea6tksCSXSh1RsdRXyxNcXd9c3GsXJkM87lnQH5R9BX0tGF1qjx5yVz6H+Btj4g06/wD+Eq07TWvIV4aFBksPp+NdT4j+IFn4U+KUGpv4WvbN7KJizGNgCThq88+G/wAdrfwN4XTTbWKeGWRgGldvu16j4y+LGneNPAOt299aWLyxmNLeZU/eNuXnJ781OJnyIqirsufs2QL4m+K+ueLhbOq3UzXO5geNxzX190rw/wDZn8MjRvhkl+yOslyP4vTg8V7hXiVJps9uhG0RaKQ0Vg5am9iHeQcEmkM6jOeK5/xD4kg0GdZbpgkA++xqbTtb0zXrAXWk30Mid+c15jruLZpZMy/GOqacdPl0LVjC9vqcbQoHPXPGK/N/4k+GvFXwZ+I1/aafdz2dhfuWiVThSCc17n+2F8Qr7QvHPhyx0l5IXs3Dna/Bw2ea3vEWjaL+0x8BE1BFLeJNKtwV8ptu4gd/yrsw2MvJXPIxS11PnPwR8L7/AOIesqx8+5lkGWbkisbxv8PvEPwr8VyW+o2Lx2Mh/wBcy8AV63+zj8StR+G/iO80LxgLOCCHI+eLEnH+1Vv9p34q6X460y0/4RmW2lsSxS7WVNznHTae3NfX06jk1ZaW3PMkkup4V4b1TSfD3jqC61W0Z9Nul2tIg45Nfa3hi0+HviL9nDVNI0bUrO48xGkEEjjch69K+EbOMwWaQX0Uj2o+5v5xVixWbTtTSe11bULOxkbEgt5iox+FZ1YKSCn8Rqar8LPEnh/Srnxh4egnY2kpYmEE4A57V7Z8Hf2wLzSLaz0bxfHIyOPL3Pn5ccV7H8A7bwr/AMIFd6XfeJLK/wBLvoyHguOZQSP7xr5n8U/BvTtR+NOu+HtF1O1WFmDWiYycsTwDXk1cLzS2O5TajufVOnweGviFqUmtaV4ltojK27yvNAxXWp4G1m2WNLbU/NXsytmvzs174e/Er4SeKFsJrzUbGR/mil84lCPoK67Tv2h/jt4OsEiluYbm1TpLLASfzNck8LrsXGq0rXP0H0bRNV0u6xd3JYMPWsXVPh8NT12a680Ik3Vs+lfGMX7ZXxMlgV7yC0ujjAEMYUj9ayNf/aV+MWr2sa6ZG8LyZA8tCQB+FT7KK0sTOcnsz6K8beD/AAt4evZJbjWIzInO3fXmHjr9pQvop8KeHCzOqeWXH5V4rp9h468fa0Y7/U7+bUJD88YZgM/StvXfhNrXgG7srzxGscKzMCGbG7Ge9bU8L1aIVRx3Zzen+Bde1S5uPFF/HJndvMkmcdfWvsXS3+H17+yvY6RruqWkbKCzR7xkkGrtxZfDfXf2ZYfD0uq21jLPAN80bhZN2PUc18V+JNDsDrBs9E1jUX0+FioWSctnHWvQoUbao5qs3PqP8RL4cuPGsyaLCDbwkqjjocGum8D+Ebzxpqq6bp2GkJwVFcV5a20JtraEbF/jH3ifrXU/CfxheeBPiTa6vFJtRm/eK/IxXpLRXOR3T1O4+K3wK1vwtpNlM8B8g4M0ij7vHesL4deHdU8QeKBpKl2iaeMtjnIFe7/Ff42ab46+Gl1puk7RO6bHBGTn2qb4R+EW+HvwruvH3icKtwyboM8DoccV4mYYm0ddzvoO2p714L8VaTpt5a+CLVlE1vGFYDrnpXpiPuUGvzk8GfF65H7QbeJJJQYZptrZ6Yz2r75s/EmnyaDb6s19Clq6Bjk5NfPwxWp69GtFqyOkJzRXPaJ4r07X76WHTX3rH1fsaK61VUtTpsZ/xH8J/wDCW+Br7Trc7Lpoz5bDrnFfnRP8TfH/AMF/HV74dubiYqJDgEn1r9QpVdGDp1LAfhXxR+2j8KVMsHjnSrM56Tt1yfp+Nc1ejdcxhXk0rxPlzx34+1n4ieIP7Y1VtxHqa7f4CfGO8+GPjyKGcGTTrtgkqE8YP/668ZjilSAvI+IyeVrqPDXh6fVp0nb91br/ABNXJG8dUeVKcm9T6y/aF+CMPjrw8PiZ4AfeZYvMlih7jueK+Mop5oI49Ou0kSWCYiUP9a+kvAX7Rdz8L9RtPCt6/wBt0bIjdZBu+U9eTXUfF74MeHviH4Tk+Ifwu8r5x5t1Zpgs5Pp6c17uBx0pR1ZhOzONm8PeGPEnwetRppjN+FAIHXOK8i1jStQ8NhbC6jKiTuR2p+hz+J/Buo7LlpLQRtn7PMM5/OvWNGv/AAz8RLpDr91Fb3SoVRCvBOMV6McS27lKCUbniNut/HbSDR9YlRlG4Kr45r1L4PeL/AOl63b3njhpYdTjfPnseuPqa5LWfA01n40m0rSrkXDrl08oY/OsW9RtPmki1fSxcTD5WITlcV1wqxqE3Pq/45fFL4S+PfAkTaVepPq1sQITxnAHSt34QaV4R8e/Cc6X428P24lKlY7hlxx65r4qt9Gtb0GS0YQDqAeorXj1jxtp0AsLfxRJFD0VYyRj9aawyfULu4vxU8B6R8P/AI8ppWk3kbaZPNjIbIQE19tfDr4b+ANE+FNve6a1lrF6IWkDkhjuYZxx6V8B3/h3UbzUPtl5qM13KTkvK5Y/rW/o9x4r0ZQmkeJru2j/AOeRlYgfhmh4WKdxuTZ7F4b8b2/gT48Xut+L7WO0sVlJRcYGM+9dN8Z/il8GviNoaXDM8k+D5e3HUfjXzzq6X2ssJNdvhdsO7DrVGKxghkElvBGQvYpkVLjCI46iGxS8WSeK7uFsYvuR7j0qJwkaR29nklwea37bw3rOqWrT2Fqxjb7yrwPyqXR7K1t2MV9DmdMj0xWbqqOwpRJdB0CGXwtd3k8qebFk4JrFNpDdGG7B2nkAfjWlqAEayW1i7oJT86hs123w1+FWo+Mddt7dyYrOA73nYYXHU1EsZaLRmoLqbfwI+Gc3iTxJFcakrCxWYs5bpgV0H7UnxIaGKDwHoLgWsA2EIaX4s/FbTvhdaweEfAexblRsnuFO7J715Y0dl8RdObUln8vVgNztI2dx9ga+XxeJlOVmUpW2PN7WdrVI/KBDKdxYeteqaL4/8WatpNvo6XkvlFggG415ncW8they2c8RWQHBYj730r1r4HeHZNe8bWlvLEWgVwSBx3rljE3o819D7a+CfhubR/A8Nzd5M0yA5PWivRtLs4rDSLe0iTakaBQKK9WlSSirntxvYtjJznp2rkviL4Wh8YfDfU9EniV2ljOzI6Ec119MK5BHatpxurBZPc/I25+H1+vxLvNAukaPypSFUj3qTxDqMvh+0fw/AvlyJxuHFfZfxj+DOoS/E208T+HrchZZAZdgz3rhvjX+zPf3HhaLxRo0Rku1jDzRoMnp6V5kqMkzirUOb4T5AybmMx3cZcnpIe1ek/C/4qeIvhtqMSw3bzWBb54GOQR9K4e7tLvTb82tzCyAHbhhSxRnzQVhMgz0FUoSjseLUTjufZN/4d+HP7Qfhpbuyu7fTNc25CAhdxr5w8a/DDxT8PPEAhuLSf8Adk7J1BwR9a9S8D/C28Pw5/4SfT72aw1EDfCNxGTjjiulh+MGq2WkRab8XfCzXmj258ubUxHyoPC9BXZQxHKrSNKdW6PnPw34un0DxW+t3ELSs67Bu5r0Twzrng3VpNWn8QLELi5UeUrY4PNemXHwc+GfxK08ap4C8TWcTt8ws5mCMD6cmvIvGn7PfjTw5qv2p9NuJlX7slrlx9eK66ddLY2ikzBXwTJdeIxHavst5G+X6Vc1P4TagtzPLDMzLAoZsHpkVzV7eeMdFuY42kuYnjOFEkJXH51etPH3jazSdbrEougFJyOQP5Vuq831KcEzmrCO9bxDLpxcsVbGK7O1+H2qXkf2xmZF9KxbC8Nvq51F7BVmY5LF66S98fa2IxBZQxiEj+8K09vK25m4I0NO8CWcrCK6uF3e5q/rdn4V8PaObQhGuAOpriF1DxFezb4ZNrHsrZqe28HeKvEl95TWd3czykbcIdvHvXJOU1q2aQgrm7pPjKTStCkhs0HzdD7Vzrm91XUd1pbMZZTzgdzXrvhr9nXxHJaR3GtSQ2MC/eErhf51180fw58BsF05otYv4Vy8cfOD+GazlVfcU7I4HwP8HJxKNa8Uube1+9+844qfx/8AGOw8O6VJ4N8DRqgYbGuY+v5iuZ8W/E7xh8RLu50nS7eWytYSV8lFwcdKw9V+GV5pPgNdbmlMU7ckSjk/ia4q1XaxzVZpWR5jqBvJ75p7y4NzM5ySTk1f0MX8V6s9nKYipyVHeltLHz7lWlUhicZT5wa9q+F3wg1DxBrcErQk27MM9uK5ZR5tjehTczn20mLxN4bl1GWIJc2wHOPvdq+nv2aPAMNnY/2vNEMgcHHetTW/2e1Tw2YtFCxSFRvXPXmvYvAXhgeFfCEGnMoEoA349a3o4Z31PXp0VHVnTiilor0lE3CiiiqARlVhhgCPQ014kkhaJ1BRhtI9qf3opNJgfMvxj/ZrsfEKS6l4etlSXliijvXx7qPhHXPBXi1Y9RtHMcMmWDKcYzX6tnketcR40+GXh3xfp8yXOnxC4dSBLjBrmq0uxxYjCqauj441T41xagvh/QdCtVhEbKsgQYzzXX+P9N1rx1o6eGbO4jW2uoVaVD0JUZrn/iJ+y/4k8PQnUvDjGSVCWBjG4iuD0H4l+M/Adw1l4k0SeUICrTspBFccoyR5jw0onKXHgvxN4R11m0lrq3mhbiSE4Br1Dwt+098QPCluum6zbrfwqNu64UsapX/xE0bxFeaRMbo2oLDzkKD5uec1F8T9f8CX1hb6PpFsovGePMwHuM1nFzRC5kehp8Yfh/4xi83xR4WtkkbkvHEBUDf8KL1SXMMn2Yjqpx/hWJqq+HvDviHwZZW+jR3cN2qC4I6HJOc0nxD8EeGPC6al4pW3X7PIFZYFY/u62VWSQ03Y2m8JfBm4YMdWVV/3h/hVpvDPwJskUy6oJB3ww/wrkvCnw60jx18N38QaFJI8qjLRAnIrkrfwla6zrr6Zah1ktgROrsQc0KrInmZ6svib4BeHX3WtoLt17Hac1Fd/tKaJo9zHB4W8PW8EEKsI5DGN2T7ivJ4/g/JbeJz58jCPyftgHX5CcV2Gk/Cvw9eX11aT6hHFNbqH8t8AkEZpTrSsJzaJfFfjH4g+M/Bn9tNdTx2sz4whI4xWL8N/DWo6Z4pGtX1g89sw/ePIMg5rpNC8Y6Not7L4avHSSyh4CHpmqfiD4nR6XdWx0TFxayEh7dVBxg1m6kpFRcpHd+HNH0KP4mSX0EEQhuc5QDoa4n4ga5OPDD+HdZtPtrNKwjeMZIG44pPDWpeIvEHjBdR0zTpoYu0YU8V7V4M+DF/e363+tIJFJ37ZR071UIOe5vTwrqPU8P8Ahb8Gr/WriGSC2IhJBKuOgr7U8E+CNP8ACujxwxxL5gAycdDW3pGg6ZodokNlapFgYJUda1cCuqnRsepRw6piU6jpRzXXFHQFFFFUAUUUUAFFFFABRRRQA1kV0KuoYHqD3rh/Fnwq8LeK7OaK70+FHkH3woooqJQUtyZQUtz5u8b/ALIVw959p8PXibU+ZUAx+FeMeIvgj4z0+6WaW3VthwHGM5FFFefUiovQ86tSinZGbcXXjuxe2ja1EstngIzYJGPxp2s+JPEGveHJ7LVwzSPjMeeDiiismzm5EanhL4m694K8LpY6BpqxOv8ArEAADCrsvxAa71BNZt9FW2upEZbgxgLuJGBRRSSJ5UQ6j4z8TahdRS2cQTbYDT+fUNms46R421PXrjWI53WZ0VGCHAwBiiiixLijrfC3wS8S+ILtLuaIkyfebNe7eBv2ZdK0tBd6oBLKTny35xRRXRTgjsw1NM9v8P8Agfw/4fgUWenwq+OTtFdKqqihVAA9BRRXZFJLQ9NJLYQj5smnCiiqS1GFFFFUAUUUUwP/2Q==';
+            function uid() { return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+            function $(id) { return document.getElementById(id); }
+            function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+            function num(v) { var x = parseFloat(v); return isNaN(x) ? 0 : x; }
+            function filled(v) { return v !== undefined && v !== null && String(v).trim() !== ''; }
+            function fmt(n) { return String(Math.round(n * 100) / 100); }
+            function ord(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+            function fmtDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[3] + '-' + m[2] + '-' + m[1] : (d || ''); }
+            function toast(t) { var m = $('msg'); m.textContent = t; m.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { m.hidden = true; }, 4200); }
+
+            function defaults() {
+                var subs = ['Hindi', 'English', 'Urdu/Sanskrit', 'Social Science', 'Civics', 'H. Science/Maths', 'Sociology', 'Economics', 'History', 'Education', 'Drawing', 'Science', 'Theology'];
+                var subjects = subs.map(function (n, i) { return { id: 's' + (i + 1), name: n, hy: 100, an: 100 }; });
+                var marks = {};['s1', 's2', 's3', 's4', 's5', 's6'].forEach(function (id, i) { marks[id] = [String(38 + i * 3), String(25 + i), String(40 + i * 2), String(30 + i)]; });
+                return {
+                    school: { name: 'Dr. WAKEEL NAZEER INTER COLLEGE', addr: 'MANI KALAN, JAUNPUR (U.P.)', title: 'PROGRESS REPORT CARD', session: '2026-27', pass: 33, logo: LOGO },
+                    subjects: subjects,
+                    students: [{ id: 'sample1', name: 'Sample Student', father: 'Sample Father', mother: 'Sample Mother', cls: '9TH', roll: '01', dob: '2011-05-14', sr: '123456', village: 'MANI KALAN', post: 'MANI KALAN', district: 'JAUNPUR', state: 'UTTAR PRADESH', photo: '', marks: marks }],
+                    sel: 'sample1'
+                };
+            }
+            var S = (function () { try { var r = localStorage.getItem(KEY); if (r) return JSON.parse(r); } catch (e) { } return defaults(); })();
+            function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Could not save: browser storage is full. Download a backup and use smaller photos.'); } }
+            function cur() { return S.students.filter(function (s) { return s.id === S.sel; })[0]; }
+
+            /* ---------- calculation ---------- */
+            function calc(st) {
+                var T = { hyMM: 0, hyI: 0, hyII: 0, hyT: 0, anMM: 0, anI: 0, anII: 0, anT: 0, gMM: 0, gMO: 0 }, rows = [], pass = true, any = false;
+                S.subjects.forEach(function (sub) {
+                    var m = st.marks[sub.id] || ['', '', '', ''];
+                    var hyU = filled(m[0]) || filled(m[1]), anU = filled(m[2]) || filled(m[3]);
+                    var r = { sub: sub, hyU: hyU, anU: anU, used: hyU || anU };
+                    if (r.used) {
+                        any = true;
+                        r.hyI = num(m[0]); r.hyII = num(m[1]); r.hyT = r.hyI + r.hyII; r.hyMM = hyU ? num(sub.hy) : 0;
+                        r.anI = num(m[2]); r.anII = num(m[3]); r.anT = r.anI + r.anII; r.anMM = anU ? num(sub.an) : 0;
+                        r.gMM = r.hyMM + r.anMM; r.gMO = (hyU ? r.hyT : 0) + (anU ? r.anT : 0);
+                        r.over = (hyU && r.hyT > num(sub.hy)) || (anU && r.anT > num(sub.an));
+                        r.ok = r.gMM ? r.gMO >= r.gMM * num(S.school.pass) / 100 : true;
+                        if (!r.ok) pass = false;
+                        ['hyMM', 'hyI', 'hyII', 'hyT', 'anMM', 'anI', 'anII', 'anT', 'gMM', 'gMO'].forEach(function (k) { if (r[k] !== undefined) T[k] += (k === 'hyI' || k === 'hyII' || k === 'hyT') && !hyU ? 0 : ((k === 'anI' || k === 'anII' || k === 'anT') && !anU ? 0 : r[k]); });
+                    }
+                    rows.push(r);
+                });
+                var pct = T.gMM ? T.gMO / T.gMM * 100 : 0;
+                return {
+                    rows: rows, T: T, any: any, pass: pass, pct: pct,
+                    div: !any ? '' : !pass ? 'Fail' : pct >= 60 ? 'First' : pct >= 45 ? 'Second' : 'Third',
+                    result: !any ? '' : pass ? 'PASS' : 'FAIL'
+                };
+            }
+            function rankOf(st) {
+                var c = calc(st); if (!c.any || !c.pass) return c.any ? '—' : '';
+                var key = function (s) { return String(s.cls || '').trim().toUpperCase(); };
+                var better = 0;
+                S.students.forEach(function (o) {
+                    if (o.id === st.id || key(o) !== key(st)) return;
+                    var oc = calc(o); if (oc.any && oc.pass && Math.round(oc.pct * 100) > Math.round(c.pct * 100)) better++;
+                });
+                return ord(better + 1);
+            }
+
+            /* ---------- report card HTML ---------- */
+            function cardHTML(st) {
+                var c = calc(st), sc = S.school, n = c.rows.length, R = n + 1;
+                var groups = [['% age', c.any ? fmt(c.pct) + '%' : ''], ['Div.', c.div], ['Position in Class', rankOf(st)], ['Result', c.result]];
+                var base = Math.floor(R / 4), rem = R % 4, starts = {}, at = 0;
+                groups.forEach(function (g, i) { var size = base + (i < rem ? 1 : 0); if (size > 0) { starts[at] = { g: g, span: size }; at += size; } });
+                function rm(i) { var s = starts[i]; return s ? '<td class="rm" rowspan="' + s.span + '"><small>' + esc(s.g[0]) + '</small><strong>' + esc(s.g[1]) + '</strong></td>' : ''; }
+                var body = '';
+                c.rows.forEach(function (r, i) {
+                    var v = function (ok, x) { return '<td class="n">' + (ok ? fmt(x) : '') + '</td>'; };
+                    var m = st.marks[r.sub.id] || ['', '', '', ''];
+                    body += '<tr><td class="sb">' + esc(r.sub.name) + '</td>' +
+                        v(r.hyU, r.hyMM) + v(filled(m[0]), r.hyI || 0) + v(filled(m[1]), r.hyII || 0) + v(r.hyU, r.hyT) +
+                        v(r.anU, r.anMM) + v(filled(m[2]), r.anI || 0) + v(filled(m[3]), r.anII || 0) + v(r.anU, r.anT) +
+                        v(r.used, r.gMM) + v(r.used, r.gMO) + rm(i) + '</tr>';
+                });
+                var T = c.T, a = c.any, tv = function (x) { return '<td class="n">' + (a ? fmt(x) : '') + '</td>'; };
+                body += '<tr class="tot"><td class="sb">Total</td>' + tv(T.hyMM) + tv(T.hyI) + tv(T.hyII) + tv(T.hyT) + tv(T.anMM) + tv(T.anI) + tv(T.anII) + tv(T.anT) + tv(T.gMM) + tv(T.gMO) + rm(n) + '</tr>';
+                var logo = sc.logo ? '<img src="' + esc(sc.logo) + '" alt="">' : '';
+                var photo = st.photo ? '<img src="' + esc(st.photo) + '" alt="">' : 'Paste<br>photo';
+                var F = function (l, val, w2) { return '<div class="f' + (w2 ? ' w2' : '') + '"><b>' + l + '</b><span>' + esc(val) + '</span></div>'; };
+                return '<div class="rc"><div class="strip"></div><div class="strip thin"></div>' +
+                    '<div class="hd">' + logo + '<div class="t"><span class="sc-name">' + esc(sc.name) + '</span><div class="sc-addr">' + esc(sc.addr) + '</div></div></div>' +
+                    '<div class="bar">' + esc(sc.title) + '</div>' +
+                    '<div class="info"><div class="photo">' + photo + '</div><div class="fields">' +
+                    F("Scholar's Name:", st.name, 1) + F("Father's Name Mr.:", st.father, 1) + F("Mother's Name Mrs.:", st.mother, 1) +
+                    F('Class:', st.cls) + F('Roll No.:', st.roll) + F('Date of Birth:', fmtDate(st.dob)) + F('S.R. No.:', st.sr) +
+                    F('Address Village:', st.village) + F('Post:', st.post) + F('District:', st.district) + F('State:', st.state) +
+                    '</div></div>' +
+                    '<div class="banner">Mark Sheet- ' + esc(sc.session) + '</div>' +
+                    '<table><colgroup><col style="width:33mm"><col style="width:12mm"><col style="width:15mm"><col style="width:15mm"><col style="width:15mm"><col style="width:12mm"><col style="width:15mm"><col style="width:15mm"><col style="width:15mm"><col style="width:13mm"><col style="width:15mm"><col style="width:23mm"></colgroup>' +
+                    '<thead><tr><th class="hr" rowspan="2">Subject</th><th class="hb" colspan="4">Half Yearly Exam.</th><th class="hb" colspan="4">Annual Exam.</th><th class="hb" colspan="2">G. Total</th><th class="hr" rowspan="2" style="font-size:14px">Remarks</th></tr>' +
+                    '<tr><th class="hs">M.M.</th><th class="hs">I</th><th class="hs">II<br>Pract.</th><th class="hs">Total</th><th class="hs">M.M.</th><th class="hs">I</th><th class="hs">II<br>Pract.</th><th class="hs">Total</th><th class="hs">M.M.</th><th class="hs">M.O.</th></tr></thead>' +
+                    '<tbody>' + body + '</tbody></table>' +
+                    '<div class="gap"></div>' +
+                    '<div class="sign"><span>Signature Guardian</span><span>Signature Class Teacher</span><span>Signature Principal</span></div>' +
+                    '<div class="strip thin" style="margin:0 0 1mm"></div><div class="strip"></div></div>';
+            }
+            function fitAll(host) {
+                host.querySelectorAll('.sc-name').forEach(function (el) {
+                    var size = 46; el.style.fontSize = size + 'px';
+                    while (el.scrollWidth > el.clientWidth && size > 14) { size -= 1; el.style.fontSize = size + 'px'; }
+                });
+            }
+
+            /* ---------- tab 1: school ---------- */
+            var sMap = { 's-name': 'name', 's-addr': 'addr', 's-title': 'title', 's-session': 'session', 's-pass': 'pass' };
+            Object.keys(sMap).forEach(function (id) {
+                $(id).value = S.school[sMap[id]];
+                $(id).addEventListener('input', function () { S.school[sMap[id]] = this.value; save(); });
+            });
+            function showLogo() { var i = $('logoPrev'); if (S.school.logo) { i.src = S.school.logo; i.style.visibility = 'visible'; } else { i.removeAttribute('src'); i.style.visibility = 'hidden'; } }
+            function readImage(file, w, h, type, cb) {
+                var fr = new FileReader();
+                fr.onload = function () {
+                    var im = new Image(); im.onload = function () {
+                        var cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+                        if (h) { cv.width = w; cv.height = h; var sc = Math.max(w / im.width, h / im.height), dw = im.width * sc, dh = im.height * sc; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(im, (w - dw) / 2, (h - dh) / 2, dw, dh); }
+                        else { var k = Math.min(1, w / Math.max(im.width, im.height)); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); ctx.drawImage(im, 0, 0, cv.width, cv.height); }
+                        cb(cv.toDataURL(type, 0.85));
+                    }; im.src = fr.result;
+                };
+                fr.readAsDataURL(file);
+            }
+            $('logoBtn').onclick = function () { $('logoFile').click(); };
+            $('logoFile').onchange = function () { var f = this.files[0]; if (!f) return; readImage(f, 240, 0, 'image/png', function (d) { S.school.logo = d; save(); showLogo(); }); this.value = ''; };
+            $('logoClear').onclick = function () { S.school.logo = ''; save(); showLogo(); };
+
+            function renderSubjects() {
+                var h = '';
+                S.subjects.forEach(function (s, i) {
+                    h += '<div class="subj"><input data-i="' + i + '" data-k="name" value="' + esc(s.name) + '" aria-label="Subject name">' +
+                        '<input data-i="' + i + '" data-k="hy" type="number" min="0" value="' + esc(s.hy) + '" aria-label="Half yearly M.M.">' +
+                        '<input data-i="' + i + '" data-k="an" type="number" min="0" value="' + esc(s.an) + '" aria-label="Annual M.M.">' +
+                        '<div class="acts"><button class="ghost sm" data-up="' + i + '" title="Move up">↑</button><button class="ghost sm" data-dn="' + i + '" title="Move down">↓</button><button class="danger sm" data-del="' + i + '">Delete</button></div></div>';
+                });
+                $('subjects').innerHTML = h;
+            }
+            $('subjects').addEventListener('input', function (e) { var t = e.target; if (t.dataset.i == null) return; S.subjects[+t.dataset.i][t.dataset.k] = t.value; save(); });
+            $('subjects').addEventListener('click', function (e) {
+                var d = e.target.dataset, i;
+                if (d.up != null) { i = +d.up; if (i > 0) { var a = S.subjects; var x = a[i]; a[i] = a[i - 1]; a[i - 1] = x; } }
+                else if (d.dn != null) { i = +d.dn; var b = S.subjects; if (i < b.length - 1) { var y = b[i]; b[i] = b[i + 1]; b[i + 1] = y; } }
+                else if (d.del != null) { if (S.subjects.length <= 3) { toast('Keep at least 3 subjects.'); return; } S.subjects.splice(+d.del, 1); }
+                else return;
+                save(); renderSubjects();
+            });
+            $('addSubject').onclick = function () { S.subjects.push({ id: uid(), name: 'New subject', hy: 100, an: 100 }); save(); renderSubjects(); };
+
+            function download(name, text, type) {
+                var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: type })); a.download = name; document.body.appendChild(a); a.click();
+                setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+            }
+            $('exportBtn').onclick = function () { download('report-card-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(S), 'application/json'); };
+            $('importBtn').onclick = function () { $('importFile').click(); };
+            $('importFile').onchange = function () {
+                var f = this.files[0]; if (!f) return; var inp = this;
+                var fr = new FileReader();
+                fr.onload = function () { try { var d = JSON.parse(fr.result); if (!d.school || !d.subjects || !d.students) throw 0; S = d; save(); location.reload(); } catch (e) { toast('This file is not a valid backup.'); } };
+                fr.readAsText(f); inp.value = '';
+            };
+            var armed = false;
+            $('resetBtn').onclick = function () {
+                var b = this;
+                if (!armed) { armed = true; b.textContent = 'Sure? Click again to erase'; setTimeout(function () { armed = false; b.textContent = 'Erase everything'; }, 3500); return; }
+                try { localStorage.removeItem(KEY); } catch (e) { } location.reload();
+            };
+
+            /* ---------- tab 2: students ---------- */
+            var FIELDS = [['name', "Scholar's name"], ['father', "Father's name"], ['mother', "Mother's name"], ['cls', 'Class (e.g. 9TH)'], ['roll', 'Roll No.'], ['dob', 'Date of birth', 'date'], ['sr', 'S.R. No.'], ['village', 'Address village'], ['post', 'Post'], ['district', 'District'], ['state', 'State']];
+            function renderList() {
+                var q = $('search').value.trim().toLowerCase();
+                var items = S.students.filter(function (s) { return !q || (s.name + ' ' + s.roll + ' ' + s.cls).toLowerCase().indexOf(q) >= 0; });
+                $('list').innerHTML = items.length ? items.map(function (s) {
+                    return '<button data-id="' + s.id + '"' + (s.id === S.sel ? ' aria-current="true"' : '') + '>' + esc(s.name || '(no name)') + '<br><small>Roll ' + esc(s.roll || '-') + ' · Class ' + esc(s.cls || '-') + '</small></button>';
+                }).join('') : '<p class="hint" style="padding:8px">No students yet.</p>';
+            }
+            function renderForm() {
+                var st = cur(), box = $('stForm');
+                if (!st) { box.innerHTML = '<p class="hint">Select a student on the left, or add a new one.</p>'; return; }
+                var h = '<h2>Personal details</h2><div class="grid">';
+                FIELDS.forEach(function (f) { h += '<label>' + esc(f[1]) + '<input data-f="' + f[0] + '" type="' + (f[2] || 'text') + '" value="' + esc(st[f[0]]) + '"></label>'; });
+                h += '</div><div class="photo-row">' + (st.photo ? '<img class="ph" src="' + esc(st.photo) + '" alt="Student photo">' : '<div class="ph"></div>') +
+                    '<button class="ghost" id="photoBtn">' + (st.photo ? 'Change photo' : 'Add photo') + '</button>' + (st.photo ? '<button class="ghost" id="photoClear">Remove photo</button>' : '') +
+                    '<input id="photoFile" type="file" accept="image/*" hidden></div>';
+                h += '<h2>Marks</h2><div class="scroll"><table class="mt"><thead><tr><th rowspan="2">Subject</th><th colspan="2">Half Yearly</th><th colspan="2">Annual</th><th rowspan="2">G. Total<br>M.O. / M.M.</th></tr><tr><th>I</th><th>II Pract.</th><th>I</th><th>II Pract.</th></tr></thead><tbody>';
+                S.subjects.forEach(function (sub) {
+                    var m = st.marks[sub.id] || ['', '', '', ''];
+                    h += '<tr data-sid="' + sub.id + '"><td class="l">' + esc(sub.name) + ' <small style="color:#888">(' + esc(sub.hy) + '+' + esc(sub.an) + ')</small></td>';
+                    for (var k = 0; k < 4; k++) h += '<td><input data-s="' + sub.id + '" data-k="' + k + '" inputmode="decimal" value="' + esc(m[k]) + '" aria-label="' + esc(sub.name) + ' mark"></td>';
+                    h += '<td data-g></td></tr>';
+                });
+                h += '</tbody></table></div><div class="sum" id="sum"></div>' +
+                    '<p class="hint">Enter half yearly and annual marks. Column II is the practical mark and can stay empty. Red box = marks above M.M. Total, percentage, division, position in class and result are calculated automatically.</p>' +
+                    '<div class="row"><button id="goCard">View report card</button><button class="danger" id="delStudent">Delete student</button></div>';
+                box.innerHTML = h; refreshMarks();
+            }
+            function refreshMarks() {
+                var st = cur(); if (!st) return; var c = calc(st);
+                c.rows.forEach(function (r) {
+                    var tr = document.querySelector('tr[data-sid="' + r.sub.id + '"]'); if (!tr) return;
+                    tr.querySelector('[data-g]').textContent = r.used ? fmt(r.gMO) + ' / ' + fmt(r.gMM) + (r.ok ? '' : ' ✕') : '';
+                    tr.querySelectorAll('input').forEach(function (inp) { var k = +inp.dataset.k; var over = k < 2 ? (r.hyU && r.hyT > num(r.sub.hy)) : (r.anU && r.anT > num(r.sub.an)); inp.classList.toggle('over', !!over); });
+                });
+                var s = $('sum'); if (!s) return;
+                s.innerHTML = c.any ? 'Total ' + fmt(c.T.gMO) + ' / ' + fmt(c.T.gMM) + ' · ' + fmt(c.pct) + '% · Division: ' + esc(c.div) + ' · Position: ' + esc(rankOf(st) || '-') + ' · Result: <span class="' + (c.pass ? 'pass' : 'fail') + '">' + c.result + '</span>' : 'Enter marks to see the result.';
+            }
+            $('list').addEventListener('click', function (e) { var b = e.target.closest('button[data-id]'); if (!b) return; S.sel = b.dataset.id; save(); renderList(); renderForm(); });
+            $('search').addEventListener('input', renderList);
+            $('addStudent').onclick = function () {
+                var p = cur() || {};
+                var st = { id: uid(), name: '', father: '', mother: '', cls: p.cls || '', roll: '', dob: '', sr: '', village: p.village || '', post: p.post || '', district: p.district || 'JAUNPUR', state: p.state || 'UTTAR PRADESH', photo: '', marks: {} };
+                S.students.push(st); S.sel = st.id; save(); $('search').value = ''; renderList(); renderForm();
+                var f = $('stForm').querySelector('input'); if (f) f.focus();
+            };
+            $('stForm').addEventListener('input', function (e) {
+                var t = e.target, st = cur(); if (!st) return;
+                if (t.dataset.f) { st[t.dataset.f] = t.value; if (t.dataset.f === 'name' || t.dataset.f === 'roll' || t.dataset.f === 'cls') renderList(); }
+                else if (t.dataset.s) { var a = st.marks[t.dataset.s]; if (!a) { a = st.marks[t.dataset.s] = ['', '', '', '']; } a[+t.dataset.k] = t.value; refreshMarks(); }
+                else return;
+                save();
+            });
+            var delArmed = false;
+            $('stForm').addEventListener('click', function (e) {
+                var id = e.target.id, st = cur(); if (!st) return;
+                if (id === 'photoBtn') $('photoFile').click();
+                else if (id === 'photoClear') { st.photo = ''; save(); renderForm(); }
+                else if (id === 'goCard') { showTab('cards'); }
+                else if (id === 'delStudent') {
+                    var b = e.target;
+                    if (!delArmed) { delArmed = true; b.textContent = 'Sure? Click again to delete'; setTimeout(function () { delArmed = false; if (b.isConnected) b.textContent = 'Delete student'; }, 3500); return; }
+                    delArmed = false; S.students = S.students.filter(function (s) { return s.id !== st.id; }); S.sel = S.students.length ? S.students[0].id : null; save(); renderList(); renderForm();
+                }
+            });
+            $('stForm').addEventListener('change', function (e) {
+                if (e.target.id !== 'photoFile') return; var f = e.target.files[0], st = cur(); if (!f || !st) return;
+                readImage(f, 264, 320, 'image/jpeg', function (d) { st.photo = d; save(); renderForm(); });
+            });
+
+            /* ---------- tab 3: cards ---------- */
+            function classes() { var seen = {}, out = []; S.students.forEach(function (s) { var k = String(s.cls || '').trim(); if (k && !seen[k.toUpperCase()]) { seen[k.toUpperCase()] = 1; out.push(k); } }); return out; }
+            function shown() { var c = $('fClass').value; return S.students.filter(function (s) { return !c || String(s.cls || '').trim().toUpperCase() === c.toUpperCase(); }); }
+            function fillFilters() {
+                var prevC = $('fClass').value, cl = classes();
+                $('fClass').innerHTML = '<option value="">All classes</option>' + cl.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+                if (cl.indexOf(prevC) >= 0) $('fClass').value = prevC;
+                fillStudents();
+            }
+            function fillStudents() {
+                var list = shown(), prev = S.sel;
+                $('fStudent').innerHTML = list.map(function (s) { return '<option value="' + s.id + '">' + esc(s.roll || '-') + ' · ' + esc(s.name || '(no name)') + '</option>'; }).join('');
+                if (list.some(function (s) { return s.id === prev; })) $('fStudent').value = prev; else if (list[0]) S.sel = list[0].id;
+                $('cardHint').textContent = list.length + ' student(s) in this selection.';
+                renderPreview();
+            }
+            function renderPreview() {
+                var st = S.students.filter(function (s) { return s.id === $('fStudent').value; })[0];
+                $('pvBox').innerHTML = st ? cardHTML(st) : '<p class="hint">No students to show.</p>';
+                if (st) { fitAll($('pvBox')); fitPreview(); }
+            }
+            function fitPreview() {
+                var box = $('pvBox'), wrap = $('pvWrap'), card = box.firstChild; if (!card || !card.classList || !card.classList.contains('rc')) return;
+                box.style.transform = 'none'; var w = card.offsetWidth, h = card.offsetHeight;
+                var k = Math.min(1, (wrap.clientWidth - 24) / w); box.style.transform = 'scale(' + k + ')'; wrap.style.height = (h * k + 24) + 'px';
+            }
+            window.addEventListener('resize', fitPreview);
+            $('fClass').onchange = fillStudents;
+            $('fStudent').onchange = function () { S.sel = this.value; save(); renderPreview(); };
+
+            function printList(list) {
+                if (!list.length) return;
+                var pa = $('printArea'); pa.innerHTML = list.map(cardHTML).join(''); pa.style.display = 'block'; fitAll(pa); pa.style.display = '';
+                window.print();
+            }
+            window.addEventListener('afterprint', function () { $('printArea').innerHTML = ''; });
+            function oneStudent() { return S.students.filter(function (s) { return s.id === $('fStudent').value; })[0]; }
+            $('printOne').onclick = function () { var s = oneStudent(); if (s) printList([s]); };
+            $('printAll').onclick = function () { printList(shown()); };
+
+            var busy = false;
+            function makePDF(list, fname, btn) {
+                if (!list.length || busy) return;
+                if (!window.html2canvas || !window.jspdf) { toast('PDF tool did not load (internet is needed once). Opening print instead: choose "Save as PDF".'); printList(list); return; }
+                busy = true; var label = btn.textContent; btn.disabled = true;
+                var host = $('renderHost'); host.innerHTML = list.map(cardHTML).join('');
+                var go = function () {
+                    fitAll(host);
+                    var cards = host.querySelectorAll('.rc'), pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' }), i = 0;
+                    var finish = function () { host.innerHTML = ''; busy = false; btn.disabled = false; btn.textContent = label; };
+                    (function next() {
+                        if (i >= cards.length) { pdf.save(fname); finish(); return; }
+                        btn.textContent = 'Preparing ' + (i + 1) + ' / ' + cards.length + '...';
+                        window.html2canvas(cards[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (cv) {
+                            if (i > 0) pdf.addPage();
+                            pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
+                            i++; setTimeout(next, 0);
+                        }).catch(function () { finish(); toast('Could not make the PDF. Use Print and choose "Save as PDF".'); });
+                    })();
+                };
+                (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(go);
+            }
+            function safe(s) { return String(s || 'student').replace(/[^\w\-]+/g, '_'); }
+            $('pdfOne').onclick = function () { var s = oneStudent(); if (s) makePDF([s], 'report-card-' + safe(s.name) + '-roll' + safe(s.roll) + '.pdf', this); };
+            $('pdfAll').onclick = function () { makePDF(shown(), 'report-cards-' + safe($('fClass').value || 'all') + '.pdf', this); };
+
+            /* ---------- tabs ---------- */
+            function showTab(name) {
+                ['school', 'students', 'cards'].forEach(function (n) { $('tab-' + n).hidden = n !== name; });
+                document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.tab === name); });
+                if (name === 'students') { renderList(); renderForm(); }
+                if (name === 'cards') fillFilters();
+            }
+            document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { showTab(b.dataset.tab); }; });
+
+            showLogo(); renderSubjects();
+        })();
+    </script>
+</body>
+
+</html>
