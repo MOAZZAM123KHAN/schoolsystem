@@ -1,0 +1,345 @@
+/*
+ * Report card (A4) — copied from the original single-file app so the printed
+ * card looks identical: same A4 layout, colours, pencil strips, logo, photo box,
+ * fields, table and Remarks column. Every rule is scoped under .rc so it can not
+ * affect the rest of the app. Sizes are in mm so the card is the same on every
+ * screen, in the PDF and on paper.
+ */
+.rc {
+  --blue: #1f3c88;
+  --display: "Anton", "Arial Narrow", Impact, sans-serif;
+  width: 210mm;
+  height: 297mm;
+  background: #fff;
+  color: #111;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #222;
+  font-family: Arial, "Noto Sans Devanagari", sans-serif;
+  font-size: 16px;
+  line-height: normal;
+  text-align: left;
+}
+
+.rc * {
+  box-sizing: border-box;
+}
+
+.rc,
+.rc * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.rc .strip {
+  height: 7mm;
+  flex: none;
+  background: repeating-linear-gradient(90deg, #e8454a 0 6mm, #f4a23a 6mm 12mm, #f4d949 12mm 18mm, #6bbf70 18mm 24mm, #4aa3df 24mm 30mm, #8a6ad6 30mm 36mm, #e86ab0 36mm 42mm);
+}
+
+.rc .strip.thin {
+  height: 3mm;
+  margin-top: 1mm;
+}
+
+.rc .strip.thin.bottom {
+  margin: 0 0 1mm;
+}
+
+.rc .hd {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+  padding: 3mm 5mm 1mm;
+}
+
+.rc .hd img {
+  width: 27mm;
+  height: 27mm;
+  max-width: none;
+  object-fit: contain;
+  border-radius: 50%;
+  flex: none;
+}
+
+.rc .hd .t {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.rc .sc-name {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--display);
+  color: #d3202b;
+  text-transform: uppercase;
+  line-height: 1.05;
+  font-size: 46px;
+  letter-spacing: 0.2px;
+  font-weight: 400;
+}
+
+.rc .sc-addr {
+  font-weight: 700;
+  font-size: 20px;
+  margin-top: 2mm;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.rc .bar {
+  background: #1b1b1b;
+  color: #fff;
+  font-weight: 800;
+  font-size: 21px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  padding: 0.6mm 0;
+  margin: 2mm 0 3mm;
+  text-transform: uppercase;
+}
+
+.rc .info {
+  margin: 0 5mm;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 3mm 4mm;
+  display: flex;
+  gap: 4mm;
+  flex: none;
+}
+
+.rc .photo {
+  width: 33mm;
+  height: 40mm;
+  flex: none;
+  border: 1px solid #999;
+  background: #f1f1f1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 10px;
+  text-align: center;
+}
+
+.rc .photo img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.rc .fields {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  column-gap: 6mm;
+  row-gap: 1.6mm;
+  align-content: space-between;
+}
+
+.rc .f {
+  display: flex;
+  gap: 2mm;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.rc .f.w2 {
+  grid-column: 1 / 3;
+}
+
+.rc .f b {
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.rc .f span {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 1px solid #333;
+  font-weight: 700;
+  font-size: 12.5px;
+  min-height: 5mm;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 2mm;
+}
+
+.rc .banner {
+  margin: 3.5mm 5mm 0;
+  background: var(--blue);
+  color: #ffd23f;
+  font-weight: 800;
+  font-size: 16px;
+  text-align: center;
+  padding: 1mm 0;
+  border: 1.5px solid #111;
+  border-bottom: 0;
+}
+
+.rc table {
+  margin: 0 5mm;
+  width: calc(100% - 10mm);
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.rc th,
+.rc td {
+  border: 1.5px solid #111;
+  text-align: center;
+  height: 7.6mm;
+  padding: 0 1mm;
+  overflow: hidden;
+}
+
+.rc th {
+  color: #fff;
+  font-weight: 800;
+}
+
+.rc th.hr {
+  background: #d62f2f;
+  font-size: 17px;
+}
+
+.rc th.hb {
+  background: #1a5fb4;
+  font-size: 13px;
+  height: 6.4mm;
+}
+
+.rc th.hs {
+  background: #d9468a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10.5px;
+  height: 6mm;
+  line-height: 1;
+}
+
+.rc td.sb {
+  text-align: left;
+  font-size: 12.5px;
+  padding-left: 2mm;
+  white-space: nowrap;
+}
+
+.rc td.n {
+  font-size: 13px;
+  font-weight: 600;
+  font-weight: 700;
+  color: #111;
+}
+
+/* M.M. cells: lighter weight (normal, not bold) and light grey (#777) so obtained marks stand out */
+.rc td.mm {
+  font-size: 13px;
+  font-weight: 500 !important;
+  color: #111 !important;
+}
+
+.rc tr.tot td {
+  font-weight: 800;
+  color: #111;
+}
+
+.rc tr.tot td.mm {
+  font-weight: 400 !important;
+  color: #777 !important;
+}
+
+.rc td.rm {
+  vertical-align: top;
+  padding: 1mm;
+}
+
+.rc td.rm small {
+  display: block;
+  font-size: 10px;
+  color: #444;
+  font-weight: 400;
+}
+
+.rc td.rm strong {
+  display: block;
+  font-size: 15px;
+  margin-top: 2mm;
+}
+
+.rc .gap {
+  flex: 1;
+}
+
+.rc .sign {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6mm 5mm;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.rc .sign span {
+  border-top: 1px solid #111;
+  padding-top: 1mm;
+  min-width: 42mm;
+  text-align: center;
+}
+
+/* ---- Hidden holders used for PDF download and printing ---- */
+
+/* Cards are laid out off-screen so they can be measured and photographed. */
+.rc-host {
+  position: fixed;
+  left: -12000px;
+  top: 0;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Hide the whole app; show only the cards, one per page */
+  #root {
+    display: none !important;
+  }
+
+  .rc-host.is-print {
+    position: static;
+    left: auto;
+  }
+
+  .rc-host.is-print .rc {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .rc-host.is-print .rc:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .rc-host.is-pdf {
+    display: none;
+  }
+}

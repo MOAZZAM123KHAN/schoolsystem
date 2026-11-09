@@ -1,0 +1,33 @@
+  @import "tailwindcss";
+
+  /* App colours: deep school blue + saffron, on warm paper. */
+  @theme {
+    --color-ink: #1f3c88;
+    --color-saffron: #ffb703;
+    --color-paper: #f5f2ea;
+    --font-sans: "Noto Sans Devanagari", Arial, "Segoe UI", system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    color: #1c2430;
+  }
+
+
+    /* Same seven pencil colours as the printed report card */
+    .pencil-strip {
+      background: repeating-linear-gradient(90deg,
+          #e8454a 0 24px,
+          #f4a23a 24px 48px,
+          #f4d949 48px 72px,
+          #6bbf70 72px 96px,
+          #4aa3df 96px 120px,
+          #8a6ad6 120px 144px,
+          #e86ab0 144px 168px);
+    }
+
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+      }
