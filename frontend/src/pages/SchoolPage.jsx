@@ -1,10 +1,29 @@
-// Stage (a) stub: the real School & Subjects page is built in stage (b).
+import { useEffect, useState } from "react";
+import SchoolSettings from "../components/SchoolSettings";
+import SubjectManager from "../components/SubjectManager";
+import { getSettings, saveSchool, saveSubjects } from "../services/settingsService";
+
 export default function SchoolPage() {
+  const [settings, setSettings] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getSettings()
+      .then(setSettings)
+      .catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <p className="text-red-600">{error}</p>;
+  if (!settings) return <p className="text-slate-500">Loading…</p>;
+
   return (
-    <section className="rounded-xl bg-white p-5 shadow-sm">
-      <h1 className="text-xl font-bold">School & Subjects / विद्यालय और विषय</h1>
-      <p className="mt-2 text-slate-600">You are logged in. This page is built in stage (b).</p>
-    </section>
+    <div className="space-y-5">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <SchoolSettings school={settings.school} onSave={saveSchool} />
+      </section>
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <SubjectManager subjects={settings.subjects} onSave={saveSubjects} />
+      </section>
+    </div>
   );
 }
-
