@@ -1,96 +1,89 @@
 # Progress Report Card Maker
 
-Makes a "Progress Report Card" for every student of Dr. Wakeel Nazeer Inter College
-(Mani Kalan, Jaunpur). Login, school settings, students, marks, report card, PDF and print.
+Full-stack application (React frontend + Node/Express backend + MongoDB) for
+"Dr. Wakeel Nazeer Inter College, Mani Kalan, Jaunpur (U.P.)".
+It generates official "Progress Report Cards" with custom school header & logo,
+student details & photo, and complete marks entry with PDF download and print.
 
-**Right now only the frontend (`frontend/`) is used.** All data is saved in the browser
-(localStorage). The `backend/` folder (Node + Express + MongoDB) is not connected yet.
+---
 
-## Commands
+## 1. Quick Start Commands
 
-Run these in the `schoolsystem` folder (the one that contains this file).
+Run these inside the `schoolsystem` folder.
 
-| What | Command | What it does |
+| Task | Command | Description |
 |---|---|---|
-| Install | `npm install` | Downloads all libraries (only needed once) |
-| First-time setup | `copy frontend\.env.example frontend\.env` | Makes your own settings file with the first login |
-| Run the app | `npm run dev:frontend` | Starts the app at http://localhost:5173 |
-| Run the tests | `npm test -w frontend` | Checks that every calculation rule works |
-| Build for production | `npm run build -w frontend` | Makes the finished files in `frontend/dist` |
-| Preview the build | `npm run preview -w frontend` | Opens the finished build locally |
+| **Install all packages** | `npm install` | Installs root, frontend, and backend packages |
+| **Run both servers** | `npm run dev` | Runs backend (port 5000) and React frontend (port 5173) together |
+| **Run backend only** | `npm run dev:backend` | Runs Node/Express with nodemon |
+| **Run frontend only** | `npm run dev:frontend` | Runs Vite React dev server with proxy to `/api` |
+| **Run unit tests** | `npm test -w frontend` | Runs Vitest tests for calculation logic |
+| **Build for production** | `npm run build` | Compiles the React app into `frontend/dist` |
+| **Start production server** | `npm start` | Express server runs API and serves production React app |
 
-> `npm run dev` starts the frontend **and** the backend together. Use it only after MongoDB is set up;
-> until then use `npm run dev:frontend`.
+---
 
-## First login
+## 2. Configuration (`.env`)
 
-Set in `frontend/.env` (copy of `frontend/.env.example`):
+### Backend (`backend/.env`)
+Copy `backend/.env.example` to `backend/.env`:
+```env
+PORT=5000
+# Local MongoDB:
+MONGO_URI=mongodb://127.0.0.1:27017/schoolsystem
+# Or MongoDB Atlas:
+# MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/schoolsystem
 
+JWT_SECRET=school_report_card_jwt_secret_key_change_in_production
+DEFAULT_EMAIL=admin@school.com
+DEFAULT_PASSWORD=ChangeMe@123
 ```
-VITE_DEFAULT_EMAIL=admin@school.com
-VITE_DEFAULT_PASSWORD=ChangeMe@123
-```
 
-After logging in, use **Change password** in the top bar. The login is temporary and **not secure**
-(see "Replacing with the backend" below).
+When backend starts and connects to MongoDB, it automatically seeds:
+1. The initial admin user with `DEFAULT_EMAIL` and `DEFAULT_PASSWORD` (hashed with `bcryptjs`).
+2. Default school details and subjects if none exist.
+3. Three initial sample students with sample marks.
 
-If you change `.env` after someone already logged in on a browser, the old account stays in that
-browser's storage. To start again, clear this site's data in the browser settings.
+---
 
-## Sample data
+## 3. Architecture & Security
 
-The first time you open the app it creates **3 sample students**, each marked with a yellow
-**SAMPLE** tag:
+### Backend (Node + Express + MongoDB)
+- **`backend/src/models/User.js`**: Users collection with bcrypt password hashing.
+- **`backend/src/models/Student.js`**: Students collection storing personal info, photos, and marks.
+- **`backend/src/models/Settings.js`**: School info, pass %, and subjects collection.
+- **`backend/src/middleware/auth.js`**: JWT Bearer token authentication guard.
+- **`backend/src/routes/auth.js`**:
+  - `POST /api/auth/login` (checks password, issues 7-day JWT)
+  - `GET /api/auth/me` (gets current user session)
+  - `POST /api/auth/change-password` (verifies current password, saves new hashed password)
+  - `POST /api/auth/logout`
+- **`backend/src/routes/students.js`**: Full CRUD for student records and marks.
+- **`backend/src/routes/settings.js`**: Read/write school settings and subjects.
 
-| Student | Class | Shows |
+### Frontend (React + Vite + Tailwind CSS)
+- **`frontend/src/services/apiClient.js`**: Centralized HTTP client attaching JWT token to all requests.
+- **`frontend/src/services/authService.js`**: Login, logout, change password, get current user via backend API.
+- **`frontend/src/services/studentService.js`**: Student CRUD via `/api/students`.
+- **`frontend/src/services/settingsService.js`**: Settings via `/api/settings`.
+- **`frontend/vite.config.js`**: Proxies `/api` requests to `http://localhost:5000`.
+
+---
+
+## 4. Marks & Calculation Rules
+
+- **Half Yearly marks are stored only**: Kept for record and printed on the card exactly as entered. Never used in calculating totals, percentages, division, ranks, or pass/fail.
+- **Annual marks only**: Annual totals, Grand Total, Percentage, Division, and Result are calculated strictly from Annual marks.
+- **Pass mark**: 33% in every annual subject (customizable in School Settings).
+- **Division**: First ≥ 60%, Second ≥ 45%, Third otherwise. Any subject failing makes the final result FAIL.
+- **Position in Class**: Rank among passed students in the same class.
+
+---
+
+## 5. Sample Data Included
+
+| Student | Class | Result |
 |---|---|---|
-| SAMPLE - Aarav Kumar | 9TH | First division, Position 1st, PASS |
-| SAMPLE - Sana Khan | 9TH | Second division, Position 2nd, PASS |
-| SAMPLE - Rohit Yadav | 10TH | Fails English, Result FAIL |
-
-Delete them from the Students page when you start entering real students.
-
-## Marks rules
-
-- **Half Yearly marks are stored only.** They are saved and printed exactly as entered. They are
-  never used in any total, G. Total, percentage, division, position, pass/fail or result.
-- **Annual marks (I and II Pract.) are the only marks used for results.**
-- A subject counts only if at least one annual mark is entered for it.
-- Pass mark: 33% in every annual subject (change it on the School & Subjects page).
-- Division: First ≥ 60%, Second ≥ 45%, Third otherwise, Fail if any subject fails.
-- Position in Class: rank among passed students of the same class (same percentage = same position).
-
-All of this is in `frontend/src/lib/calculations.js`, with tests in `calculations.test.js`.
-
-## Folder map
-
-```
-frontend/src/
-├── services/    authService, studentService, settingsService   ← the backend replaces these
-├── lib/         calculations.js (+ tests), pdf.js, images.js
-├── context/     AuthContext (shares the logged-in user)
-├── pages/       LoginPage, SchoolPage, StudentsPage, ReportCardsPage
-├── components/  Layout, TopBar, RequireAuth, ChangePasswordDialog, SchoolSettings, SubjectManager,
-│                StudentList, StudentForm, MarksEntry, ClassFilter, ReportCard, ReportCardPreview
-├── data/        sampleData.js (the 3 sample students)
-└── assets/      logo.js (school logo)
-```
-
-## Replacing with the backend later
-
-Only these three files talk to storage. Keep the same function names and return values and
-no component needs to change:
-
-| File | Functions | Backend idea |
-|---|---|---|
-| `services/authService.js` | `login`, `logout`, `changePassword`, `getCurrentUser` | `POST /api/auth/login`, `/logout`, `/change-password`, `GET /api/auth/me` (use a secure cookie or token and hashed passwords) |
-| `services/studentService.js` | `listStudents`, `getStudent`, `createStudent`, `updateStudent`, `deleteStudent` | `GET/POST /api/students`, `GET/PUT/DELETE /api/students/:id` |
-| `services/settingsService.js` | `getSettings`, `saveSettings`, `saveSchool`, `saveSubjects` | `GET/PUT /api/settings` |
-
-Notes for the backend work:
-
-- `frontend/vite.config.js` already sends `/api` requests to `http://localhost:5000`.
-- No component reads localStorage for login. Components only use `AuthContext` → `authService`.
-- Photos and the logo are small data-URL text strings. Store them as files or in the database later.
-- The sample students are created by `studentService` on first run; remove that when real data exists.
-
+| **SAMPLE - Aarav Kumar** | 9TH | 1st Position, First Division, PASS |
+| **SAMPLE - Sana Khan** | 9TH | 2nd Position, Second Division, PASS |
+| **SAMPLE - Rohit Yadav** | 10TH | Fails English (<33%), FAIL |
