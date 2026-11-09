@@ -241,10 +241,25 @@
 .rc td.n {
   font-size: 13px;
   font-weight: 600;
+  font-weight: 700;
+  color: #111;
+}
+
+/* M.M. cells: lighter weight (normal, not bold) and light grey (#777) so obtained marks stand out */
+.rc td.mm {
+  font-size: 13px;
+  font-weight: 500 !important;
+  color: #111 !important;
 }
 
 .rc tr.tot td {
   font-weight: 800;
+  color: #111;
+}
+
+.rc tr.tot td.mm {
+  font-weight: 400 !important;
+  color: #777 !important;
 }
 
 .rc td.rm {
@@ -328,4 +343,3 @@
     display: none;
   }
 }
-

@@ -4,180 +4,190 @@ import {
   exceedsMax,
   formatNumber,
   fullResult,
-  ordinal,
-  positionInClass,
 } from "./calculations";
 
 const subjects = [
-  { id: "a", name: "Hindi", hy: 50, an: 100 },
-  { id: "b", name: "English", hy: 50, an: 100 },
-  { id: "c", name: "Maths", hy: 50, an: 100 },
+  { id: "sub1", name: "Hindi", hy: 100, an: 100 },
+  { id: "sub2", name: "English", hy: 100, an: 100 },
+  { id: "sub3", name: "Mathematics", hy: 100, an: 100 },
 ];
 
-// marks = [halfI, halfII, annualI, annualII]
-const student = (id, cls, marks) => ({ id, cls, marks });
+const student = (id, marks) => ({ id, cls: "9TH", marks });
 
-describe("annual marks decide the result", () => {
-  it("adds annual I + II per subject and builds G. Total from annual only", () => {
-    const s = student("1", "9TH", {
-      a: ["10", "", "60", "5"],
-      b: ["10", "", "70", ""],
-      c: ["10", "", "50", ""],
+describe("Stage 1: Half-Yearly only", () => {
+  it("calculates results using half-yearly marks when no annual marks are entered", () => {
+    const s = student("st1", {
+      sub1: ["40", "30", "", ""], // 70 / 100
+      sub2: ["35", "25", "", ""], // 60 / 100
+      sub3: ["45", "35", "", ""], // 80 / 100
     });
-    const r = calculateStudent(s, subjects, 33);
-    expect(r.rows[0].annualTotal).toBe(65);
-    expect(r.totals.grandMM).toBe(300);
-    expect(r.totals.grandMO).toBe(185);
-    expect(formatNumber(r.percentage)).toBe("61.67");
-    expect(r.division).toBe("First");
-    expect(r.result).toBe("PASS");
+
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(1);
+    expect(res.rows[0].hyTotal).toBe(70);
+    expect(res.rows[1].hyTotal).toBe(60);
+    expect(res.rows[2].hyTotal).toBe(80);
+
+    // Half yearly totals
+    expect(res.totals.hyMM).toBe(300);
+    expect(res.totals.hyTotal).toBe(210);
+
+    // Percentage & result
+    expect(res.percentage).toBe(70);
+    expect(res.division).toBe("First");
+    expect(res.result).toBe("PASS");
+    expect(res.position).toBe(""); // Always empty for manual entry
   });
 
-  it("division boundaries: 60 First, 45 Second, below Third", () => {
-    const mk = (n) => student("x", "9TH", { a: ["", "", String(n), ""], b: ["", "", String(n), ""], c: ["", "", String(n), ""] });
-    expect(calculateStudent(mk(60), subjects).division).toBe("First");
-    expect(calculateStudent(mk(59), subjects).division).toBe("Second");
-    expect(calculateStudent(mk(45), subjects).division).toBe("Second");
-    expect(calculateStudent(mk(44), subjects).division).toBe("Third");
-    expect(calculateStudent(mk(33), subjects).division).toBe("Third");
-  });
-
-  it("fails when any annual subject is below the pass mark", () => {
-    const s = student("1", "9TH", { a: ["", "", "90", ""], b: ["", "", "32", ""], c: ["", "", "90", ""] });
-    const r = calculateStudent(s, subjects, 33);
-    expect(r.passed).toBe(false);
-    expect(r.division).toBe("Fail");
-    expect(r.result).toBe("FAIL");
-  });
-
-  it("pass mark is configurable", () => {
-    const s = student("1", "9TH", { a: ["", "", "35", ""], b: ["", "", "35", ""], c: ["", "", "35", ""] });
-    expect(calculateStudent(s, subjects, 33).result).toBe("PASS");
-    expect(calculateStudent(s, subjects, 40).result).toBe("FAIL");
-  });
-
-  it("a subject counts only if an annual mark is entered", () => {
-    const s = student("1", "9TH", {
-      a: ["", "", "80", ""],
-      b: ["40", "", "", ""], // only half-yearly: does NOT count
-      c: ["", "", "", ""],
+  it("fails in Stage 1 when a half-yearly subject is below pass mark", () => {
+    const s = student("st2", {
+      sub1: ["15", "10", "", ""], // 25 / 100 (< 33%) -> FAIL
+      sub2: ["40", "30", "", ""],
+      sub3: ["40", "40", "", ""],
     });
-    const r = calculateStudent(s, subjects, 33);
-    expect(r.rows[0].used).toBe(true);
-    expect(r.rows[1].used).toBe(false);
-    expect(r.totals.grandMM).toBe(100);
-    expect(r.percentage).toBe(80);
-  });
 
-  it("gives an empty result when no annual marks are entered", () => {
-    const r = calculateStudent(student("1", "9TH", { a: ["50", "", "", ""] }), subjects);
-    expect(r.any).toBe(false);
-    expect(r.division).toBe("");
-    expect(r.result).toBe("");
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(1);
+    expect(res.passed).toBe(false);
+    expect(res.division).toBe("Fail");
+    expect(res.result).toBe("FAIL");
+    expect(res.rows[0].ok).toBe(false);
+    expect(res.rows[1].ok).toBe(true);
   });
 });
 
-describe("position in class", () => {
-  const list = [
-    student("p1", "9TH", { a: ["", "", "90", ""], b: ["", "", "90", ""], c: ["", "", "90", ""] }),
-    student("p2", "9th ", { a: ["", "", "70", ""], b: ["", "", "70", ""], c: ["", "", "70", ""] }), // same class, different spelling
-    student("p3", "9TH", { a: ["", "", "20", ""], b: ["", "", "95", ""], c: ["", "", "95", ""] }), // failed
-    student("p4", "10TH", { a: ["", "", "50", ""], b: ["", "", "50", ""], c: ["", "", "50", ""] }),
-  ];
-
-  it("ranks passed students of the same class only", () => {
-    expect(positionInClass(list[0], list, subjects)).toBe("1st");
-    expect(positionInClass(list[1], list, subjects)).toBe("2nd");
-    expect(positionInClass(list[3], list, subjects)).toBe("1st"); // alone in 10TH
-  });
-
-  it("failed students get no position and do not push others down", () => {
-    expect(positionInClass(list[2], list, subjects)).toBe("—");
-  });
-
-  it("equal percentages share a position", () => {
-    const tie = [
-      student("t1", "9TH", { a: ["", "", "60", ""], b: ["", "", "60", ""], c: ["", "", "60", ""] }),
-      student("t2", "9TH", { a: ["", "", "60", ""], b: ["", "", "60", ""], c: ["", "", "60", ""] }),
-    ];
-    expect(positionInClass(tie[0], tie, subjects)).toBe("1st");
-    expect(positionInClass(tie[1], tie, subjects)).toBe("1st");
-  });
-});
-
-describe("HALF-YEARLY MARKS NEVER CHANGE ANY RESULT", () => {
-  const annual = { a: "72", b: "55", c: "48" };
-  const withHalf = (half) =>
-    student("h", "9TH", {
-      a: [half[0], half[1], annual.a, ""],
-      b: [half[0], half[1], annual.b, ""],
-      c: [half[0], half[1], annual.c, ""],
+describe("Stage 2: Both exams (Annual entered)", () => {
+  it("combines Half Yearly and Annual into G. Total when annual marks are entered", () => {
+    const s = student("st3", {
+      sub1: ["35", "25", "40", "30"], // HY: 60, AN: 70 -> G.Total: 130 / 200
+      sub2: ["20", "25", "25", "30"], // HY: 45, AN: 55 -> G.Total: 100 / 200
+      sub3: ["30", "30", "35", "35"], // HY: 60, AN: 70 -> G.Total: 130 / 200
     });
-  const others = (half) => [
-    withHalf(half),
-    student("o1", "9TH", { a: ["5", "", "60", ""], b: ["5", "", "60", ""], c: ["5", "", "60", ""] }),
-  ];
 
-  const variants = [
-    ["", ""],
-    ["0", "0"],
-    ["1", "1"],
-    ["25", "25"],
-    ["50", "50"],
-    ["9999", "9999"], // even nonsense values change nothing
-  ];
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(2);
+    expect(res.rows[0].annualTotal).toBe(70);
+    expect(res.rows[0].grandMM).toBe(200);
+    expect(res.rows[0].grandMO).toBe(130);
 
-  it("totals, G. Total, %, division, result and position are identical for any half-yearly marks", () => {
-    const baseline = fullResult(withHalf(["", ""]), others(["", ""]), subjects, 33);
-    for (const half of variants) {
-      const r = fullResult(withHalf(half), others(half), subjects, 33);
-      expect(r.totals).toEqual(baseline.totals);
-      expect(r.percentage).toBe(baseline.percentage);
-      expect(r.division).toBe(baseline.division);
-      expect(r.result).toBe(baseline.result);
-      expect(r.passed).toBe(baseline.passed);
-      expect(r.position).toBe(baseline.position);
-      expect(r.rows.map((x) => [x.used, x.annualTotal, x.grandMM, x.grandMO, x.ok])).toEqual(
-        baseline.rows.map((x) => [x.used, x.annualTotal, x.grandMM, x.grandMO, x.ok])
-      );
-    }
+    // Grand totals across all 3 subjects: 360 / 600 = 60%
+    expect(res.totals.grandMM).toBe(600);
+    expect(res.totals.grandMO).toBe(360);
+    expect(res.percentage).toBe(60);
+    expect(res.division).toBe("First");
+    expect(res.result).toBe("PASS");
+    expect(res.position).toBe("");
   });
 
-  it("another student's half-yearly marks do not change this student's position", () => {
-    const me = withHalf(["", ""]);
-    const rivalLow = student("r", "9TH", { a: ["0", "", "60", ""], b: ["0", "", "60", ""], c: ["0", "", "60", ""] });
-    const rivalHigh = student("r", "9TH", { a: ["50", "50", "60", "" ], b: ["50", "50", "60", ""], c: ["50", "50", "60", ""] });
-    expect(positionInClass(me, [me, rivalLow], subjects)).toBe(positionInClass(me, [me, rivalHigh], subjects));
+  it("division thresholds in Stage 2: First >= 60%, Second >= 45%, Third otherwise", () => {
+    const mk = (half, annual) =>
+      student("test", {
+        sub1: [String(half), "", String(annual), ""],
+        sub2: [String(half), "", String(annual), ""],
+        sub3: [String(half), "", String(annual), ""],
+      });
+
+    // 60 / 100 each -> G.Total 120/200 = 60%
+    expect(calculateStudent(mk(60, 60), subjects).division).toBe("First");
+
+    // 45 / 100 each -> G.Total 90/200 = 45%
+    expect(calculateStudent(mk(45, 45), subjects).division).toBe("Second");
+
+    // 40 / 100 each -> G.Total 80/200 = 40% (>= 33%)
+    expect(calculateStudent(mk(40, 40), subjects).division).toBe("Third");
   });
 
-  it("half-yearly marks alone never make a subject count or a student pass", () => {
-    const s = student("z", "9TH", { a: ["50", "50", "", ""], b: ["50", "50", "", ""], c: ["50", "50", "", ""] });
-    const r = calculateStudent(s, subjects, 33);
-    expect(r.any).toBe(false);
-    expect(r.totals.grandMO).toBe(0);
-    expect(r.result).toBe("");
-  });
+  it("checks G. Total against pass percentage in Stage 2", () => {
+    const s = student("failCase", {
+      sub1: ["10", "10", "10", "10"], // G. Total: 40 / 200 = 20% (< 33%) -> FAIL
+      sub2: ["40", "40", "40", "40"], // G. Total: 160 / 200 = 80%
+      sub3: ["40", "40", "40", "40"],
+    });
 
-  it("the calculation never returns any half-yearly total", () => {
-    const r = calculateStudent(withHalf(["30", "10"]), subjects, 33);
-    // Look only at calculated values (rows echo back the subject settings, which is not a result)
-    const calculated = { ...r, rows: r.rows.map(({ subject, ...values }) => values) };
-    const text = JSON.stringify(calculated);
-    expect(text).not.toMatch(/half/i);
-    expect(text).not.toMatch(/hy/i);
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(2);
+    expect(res.passed).toBe(false);
+    expect(res.division).toBe("Fail");
+    expect(res.result).toBe("FAIL");
+    expect(res.rows[0].ok).toBe(false);
   });
 });
 
-describe("helpers", () => {
-  it("ordinal", () => {
-    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal)).toEqual([
-      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st",
-    ]);
+describe("Special scenarios: Single-exam subject, missing marks, and editing", () => {
+  it("subject with only one exam uses only that exam's MM in totals", () => {
+    const s = student("singleExamSub", {
+      sub1: ["40", "30", "45", "35"], // Both exams: MM 200, MO 150
+      sub2: ["30", "20", "", ""],     // Only Half Yearly: MM 100, MO 50
+      sub3: ["", "", "40", "40"],     // Only Annual: MM 100, MO 80
+    });
+
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(2);
+
+    // sub2 has only HY: grandMM = 100, grandMO = 50
+    expect(res.rows[1].grandMM).toBe(100);
+    expect(res.rows[1].grandMO).toBe(50);
+
+    // sub3 has only Annual: grandMM = 100, grandMO = 80
+    expect(res.rows[2].grandMM).toBe(100);
+    expect(res.rows[2].grandMO).toBe(80);
+
+    // Grand totals: 200 + 100 + 100 = 400 MM; 150 + 50 + 80 = 280 MO
+    expect(res.totals.grandMM).toBe(400);
+    expect(res.totals.grandMO).toBe(280);
+    expect(res.percentage).toBe(70);
   });
 
-  it("exceedsMax warns about typing mistakes only", () => {
+  it("handles missing/blank marks gracefully as 0 without NaN", () => {
+    const s = student("missingMarks", {
+      sub1: ["", "", "50", ""],
+      sub2: ["", "", "", ""],
+      sub3: ["", "", "", ""],
+    });
+
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.stage).toBe(2);
+    expect(res.totals.grandMM).toBe(100);
+    expect(res.totals.grandMO).toBe(50);
+    expect(res.percentage).toBe(50);
+    expect(Number.isNaN(res.percentage)).toBe(false);
+  });
+
+  it("editing half-yearly marks after annual is entered recalculates immediately", () => {
+    const marks = {
+      sub1: ["30", "20", "40", "30"],
+      sub2: ["30", "20", "40", "30"],
+      sub3: ["30", "20", "40", "30"],
+    };
+
+    const initial = calculateStudent(student("editTest", marks), subjects, 33);
+    expect(initial.totals.grandMO).toBe(360);
+
+    // Edit half-yearly mark on sub1 from 30 to 45 (+15)
+    const updatedMarks = {
+      ...marks,
+      sub1: ["45", "20", "40", "30"],
+    };
+
+    const updated = calculateStudent(student("editTest", updatedMarks), subjects, 33);
+    expect(updated.totals.grandMO).toBe(375);
+    expect(updated.rows[0].grandMO).toBe(135);
+  });
+
+  it("returns empty result if no marks are entered at all", () => {
+    const s = student("empty", {});
+    const res = calculateStudent(s, subjects, 33);
+    expect(res.any).toBe(false);
+    expect(res.percentage).toBe(0);
+    expect(res.division).toBe("");
+    expect(res.result).toBe("");
+  });
+});
+
+describe("exceedsMax warning helper", () => {
+  it("detects when sum of typed marks is greater than maximum marks", () => {
     expect(exceedsMax(["60", "50"], 100)).toBe(true);
-    expect(exceedsMax(["60", "40"], 100)).toBe(false);
+    expect(exceedsMax(["50", "50"], 100)).toBe(false);
     expect(exceedsMax(["", ""], 100)).toBe(false);
   });
 });

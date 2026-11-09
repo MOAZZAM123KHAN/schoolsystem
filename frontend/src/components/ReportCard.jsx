@@ -21,18 +21,26 @@ function Field({ label, value, wide }) {
 }
 
 /**
- * The printed Progress Report Card (one A4 page).
+ * Progress Report Card (A4 sheet).
  *
- * Half Yearly columns show the stored marks exactly as entered and their
- * "Total" cell is always empty — nothing is calculated from them.
- * Annual columns, G. Total and the Remarks (% age, Div., Position, Result)
- * come from lib/calculations.js, which uses annual marks only.
+ * TWO STAGES:
+ * STAGE 1 (Half Yearly):
+ *   - Only Half Yearly marks entered.
+ *   - Half Yearly Total = I + II Pract.
+ *   - Annual and G. Total columns stay empty.
+ *   - Remarks (% age, Div., Result) based on Half Yearly marks only.
+ *   - Position in Class stays empty.
  *
- * Props:
- *   student      the student to print
- *   subjects     subject list from settings
- *   school       { name, addr, title, session, pass, logo }
- *   allStudents  everyone (needed for Position in Class)
+ * STAGE 2 (Annual):
+ *   - Both Half Yearly and Annual marks entered.
+ *   - G. Total = Half Yearly + Annual.
+ *   - Remarks based on G. Total and combined % age.
+ *   - Position in Class stays empty.
+ *
+ * FONT RULE:
+ *   - All M.M. cells (Half Yearly, Annual, G. Total, and Total row) use
+ *     td.mm (normal font weight, light grey #777).
+ *   - Obtained marks and their totals use td.n (dark and bold).
  */
 export default function ReportCard({ student, subjects, school, allStudents }) {
   const nameRef = useRef(null);
@@ -49,18 +57,19 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
     }
   }, [school.name]);
 
-  const r = fullResult(student, allStudents, subjects, Number(school.pass));
+  const r = fullResult(student, subjects, Number(school.pass));
+  const isStage2 = r.stage === 2;
   const n = r.rows.length;
   const rowCount = n + 1; // subject rows + Total row
 
-  // Remarks column: four boxes (% age, Div., Position, Result) stacked down the
-  // table, each taking an equal share of the rows.
+  // Remarks column: 4 stacked sections (% age, Div., Position in Class, Result)
   const groups = [
     ["% age", r.any ? `${formatNumber(r.percentage)}%` : ""],
     ["Div.", r.division],
-    ["Position in Class", r.position],
+    ["Position in Class", ""], // Always left empty for manual filling
     ["Result", r.result],
   ];
+
   const base = Math.floor(rowCount / 4);
   const extra = rowCount % 4;
   const remarkAt = {};
@@ -72,6 +81,7 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
       at += span;
     }
   });
+
   const remarkCell = (i) => {
     const g = remarkAt[i];
     return g ? (
@@ -81,9 +91,6 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
       </td>
     ) : null;
   };
-
-  const num = (show, value) => <td className="n">{show ? formatNumber(value) : ""}</td>;
-  const total = (value) => <td className="n">{r.any ? formatNumber(value) : ""}</td>;
 
   return (
     <div className="rc">
@@ -129,6 +136,7 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
         </div>
       </div>
 
+      {/* Banner always reads "Mark Sheet- <session>" in both stages */}
       <div className="banner">Mark Sheet- {school.session}</div>
 
       <table>
@@ -179,42 +187,54 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
         <tbody>
           {r.rows.map((row, i) => {
             const m = (student.marks && student.marks[row.subject.id]) || [];
-            const hy1 = isFilled(m[0]) ? String(m[0]).trim() : "";
-            const hy2 = isFilled(m[1]) ? String(m[1]).trim() : "";
-            const hyStored = isFilled(m[0]) || isFilled(m[1]);
+            const hyI = isFilled(m[0]) ? row.hyI : "";
+            const hyII = isFilled(m[1]) ? row.hyII : "";
+            const anI = isFilled(m[2]) ? row.annualI : "";
+            const anII = isFilled(m[3]) ? row.annualII : "";
+
             return (
               <tr key={row.subject.id}>
                 <td className="sb">{row.subject.name}</td>
-                {/* Half Yearly: stored marks exactly as entered; Total left empty */}
-                <td className="n">{hyStored ? row.subject.hy : ""}</td>
-                <td className="n">{hy1}</td>
-                <td className="n">{hy2}</td>
-                <td className="n" />
-                {/* Annual: calculated */}
-                {num(row.used, row.annualMM)}
-                {num(isFilled(m[2]), row.annualI)}
-                {num(isFilled(m[3]), row.annualII)}
-                {num(row.used, row.annualTotal)}
-                {/* G. Total: annual only */}
-                {num(row.used, row.grandMM)}
-                {num(row.used, row.grandMO)}
+
+                {/* Half Yearly columns */}
+                <td className="mm">{row.hasHy ? row.subject.hy : ""}</td>
+                <td className="n">{row.hasHy ? hyI : ""}</td>
+                <td className="n">{row.hasHy ? hyII : ""}</td>
+                <td className="n">{row.hasHy ? formatNumber(row.hyTotal) : ""}</td>
+
+                {/* Annual columns (empty in Stage 1) */}
+                <td className="mm">{isStage2 && row.hasAnnual ? row.subject.an : ""}</td>
+                <td className="n">{isStage2 && row.hasAnnual ? anI : ""}</td>
+                <td className="n">{isStage2 && row.hasAnnual ? anII : ""}</td>
+                <td className="n">{isStage2 && row.hasAnnual ? formatNumber(row.annualTotal) : ""}</td>
+
+                {/* G. Total columns (empty in Stage 1) */}
+                <td className="mm">{isStage2 && row.used ? formatNumber(row.grandMM) : ""}</td>
+                <td className="n">{isStage2 && row.used ? formatNumber(row.grandMO) : ""}</td>
+
                 {remarkCell(i)}
               </tr>
             );
           })}
           <tr className="tot">
             <td className="sb">Total</td>
-            {/* Nothing is calculated for the Half Yearly columns */}
-            <td className="n" />
-            <td className="n" />
-            <td className="n" />
-            <td className="n" />
-            {total(r.totals.annualMM)}
-            {total(r.totals.annualI)}
-            {total(r.totals.annualII)}
-            {total(r.totals.annualTotal)}
-            {total(r.totals.grandMM)}
-            {total(r.totals.grandMO)}
+
+            {/* Half Yearly Totals */}
+            <td className="mm">{r.any ? formatNumber(r.totals.hyMM) : ""}</td>
+            <td className="n">{r.any ? formatNumber(r.totals.hyI) : ""}</td>
+            <td className="n">{r.any ? formatNumber(r.totals.hyII) : ""}</td>
+            <td className="n">{r.any ? formatNumber(r.totals.hyTotal) : ""}</td>
+
+            {/* Annual Totals (empty in Stage 1) */}
+            <td className="mm">{isStage2 && r.any ? formatNumber(r.totals.annualMM) : ""}</td>
+            <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualI) : ""}</td>
+            <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualII) : ""}</td>
+            <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualTotal) : ""}</td>
+
+            {/* G. Total Totals (empty in Stage 1) */}
+            <td className="mm">{isStage2 && r.any ? formatNumber(r.totals.grandMM) : ""}</td>
+            <td className="n">{isStage2 && r.any ? formatNumber(r.totals.grandMO) : ""}</td>
+
             {remarkCell(n)}
           </tr>
         </tbody>
@@ -231,4 +251,3 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
     </div>
   );
 }
-

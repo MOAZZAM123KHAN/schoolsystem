@@ -3,17 +3,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
+  calculateStudent,
   exceedsMax,
   formatNumber,
-  fullResult,
 } from "../lib/calculations";
 
 const EMPTY = ["", "", "", ""];
 
-// One typed mark: empty, or a number that is 0 or more
 const markText = z
   .string()
-  .refine((v) => v.trim() === "" || (!Number.isNaN(Number(v)) && Number(v) >= 0), "Marks must be a number, 0 or more.");
+  .refine(
+    (v) => v.trim() === "" || (!Number.isNaN(Number(v)) && Number(v) >= 0),
+    "Marks must be a positive number or empty."
+  );
 
 function buildSchema(subjects) {
   const shape = {};
@@ -23,37 +25,38 @@ function buildSchema(subjects) {
   return z
     .object({ marks: z.object(shape) })
     .superRefine((val, ctx) => {
-      // Typing-mistake check: one exam's I + II Pract. must not be more than its M.M.
       subjects.forEach((s) => {
-        const m = val.marks[s.id];
+        const m = val.marks[s.id] || EMPTY;
         if (exceedsMax([m[0], m[1]], s.hy)) {
-          ctx.addIssue({ code: "custom", path: ["marks", s.id, 0], message: `${s.name}: Half Yearly marks are more than M.M. (${s.hy}).` });
+          ctx.addIssue({
+            code: "custom",
+            path: ["marks", s.id, 0],
+            message: `${s.name}: Half Yearly marks exceed M.M. (${s.hy}).`,
+          });
         }
         if (exceedsMax([m[2], m[3]], s.an)) {
-          ctx.addIssue({ code: "custom", path: ["marks", s.id, 2], message: `${s.name}: Annual marks are more than M.M. (${s.an}).` });
+          ctx.addIssue({
+            code: "custom",
+            path: ["marks", s.id, 2],
+            message: `${s.name}: Annual marks exceed M.M. (${s.an}).`,
+          });
         }
       });
     });
 }
 
 const cellCls =
-  "w-full min-w-[3.25rem] rounded-md border px-1 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/25";
+  "w-full min-w-[3.25rem] rounded-md border px-1 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/25 text-slate-900 bg-white";
 
 /**
- * Enter half-yearly and annual marks for one student.
+ * Two-stage marks entry screen:
+ * - Half Yearly (I, II Pract.)
+ * - Annual (I, II Pract.)
  *
- * - Half Yearly columns are STORED ONLY. Nothing is calculated from them.
- * - The G. Total column and the summary line use ANNUAL marks only
- *   (see lib/calculations.js).
- *
- * Props:
- *   student      the student being edited (use key={student.id})
- *   subjects     subject list from settings
- *   passPercent  pass mark from settings
- *   allStudents  everyone (needed for Position in Class)
- *   onSave(marks) -> Promise
+ * Stage 1 (Half Yearly): When no annual marks are entered.
+ * Stage 2 (Annual): When annual marks are entered, combined G. Total is calculated.
  */
-export default function MarksEntry({ student, subjects, passPercent, allStudents, onSave }) {
+export default function MarksEntry({ student, subjects, passPercent, onSave }) {
   const [message, setMessage] = useState({ type: "", text: "" });
   const schema = useMemo(() => buildSchema(subjects), [subjects]);
 
@@ -73,13 +76,13 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), defaultValues: { marks: defaultMarks } });
 
-  // Live values while typing, so the result updates immediately
+  // Live recalculation on every keystroke
   const live = watch("marks");
   const liveStudent = { ...student, marks: live };
-  const everyone = allStudents.map((s) => (s.id === student.id ? liveStudent : s));
-  const result = fullResult(liveStudent, everyone, subjects, passPercent);
+  const result = calculateStudent(liveStudent, subjects, passPercent);
+  const isStage2 = result.stage === 2;
 
-  // Collect readable error messages for the summary under the table
+  // Collect error messages
   const errorList = [];
   subjects.forEach((s) => {
     const e = errors.marks?.[s.id];
@@ -94,7 +97,7 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
     setMessage({ type: "", text: "" });
     try {
       await onSave(values.marks);
-      setMessage({ type: "ok", text: "Marks saved. / अंक सहेजे गए।" });
+      setMessage({ type: "ok", text: "Marks saved successfully. / अंक सहेजे गए।" });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     }
@@ -103,28 +106,48 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
   const resultClass = result.passed ? "text-green-700" : "text-red-600";
 
   return (
-    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-3">
-      <h2 className="text-lg font-bold text-[var(--color-ink)]">Marks / अंक</h2>
+    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--color-ink)]">Marks Entry / अंक प्रविष्टि</h2>
+          <p className="text-xs text-slate-500">
+            {isStage2
+              ? "⚡ Stage 2 Active: Annual marks entered — combined G. Total & result calculated."
+              : "🌱 Stage 1 Active: Half Yearly only (Annual marks can be entered later)."}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${
+            isStage2
+              ? "bg-purple-100 text-purple-800 border border-purple-300"
+              : "bg-blue-100 text-blue-800 border border-blue-300"
+          }`}
+        >
+          {isStage2 ? "Stage 2: Annual & G. Total" : "Stage 1: Half Yearly"}
+        </span>
+      </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-collapse text-sm">
+        <table className="w-full min-w-[36rem] border-collapse text-sm">
           <thead>
-            <tr className="bg-[var(--color-ink)]/10">
+            <tr className="bg-[var(--color-ink)]/10 text-slate-800">
               <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-left">
                 Subject / विषय
               </th>
               <th colSpan={2} className="border border-slate-300 px-2 py-1">
-                Half Yearly <span className="block text-[10px] font-normal text-slate-500">saved only, not used in result</span>
+                Half Yearly <span className="block text-[10px] font-normal text-slate-500">Stage 1</span>
               </th>
               <th colSpan={2} className="border border-slate-300 px-2 py-1">
-                Annual <span className="block text-[10px] font-normal text-slate-500">used for the result</span>
+                Annual <span className="block text-[10px] font-normal text-slate-500">Stage 2</span>
               </th>
               <th rowSpan={2} className="border border-slate-300 px-2 py-1">
-                G. Total
-                <span className="block text-[10px] font-normal text-slate-500">annual M.O. / M.M.</span>
+                {isStage2 ? "G. Total" : "HY Total"}
+                <span className="block text-[10px] font-normal text-slate-500">
+                  {isStage2 ? "M.O. / M.M." : "M.O. / M.M."}
+                </span>
               </th>
             </tr>
-            <tr className="bg-[var(--color-ink)]/10 text-xs">
+            <tr className="bg-[var(--color-ink)]/10 text-xs text-slate-700">
               <th className="border border-slate-300 px-2 py-1">I</th>
               <th className="border border-slate-300 px-2 py-1">II Pract.</th>
               <th className="border border-slate-300 px-2 py-1">I</th>
@@ -137,8 +160,9 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
               const m = live[s.id] || EMPTY;
               const hyOver = exceedsMax([m[0], m[1]], s.hy);
               const anOver = exceedsMax([m[2], m[3]], s.an);
+
               return (
-                <tr key={s.id}>
+                <tr key={s.id} className="hover:bg-slate-50/50">
                   <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-left">
                     {s.name}{" "}
                     <small className="text-slate-400">
@@ -152,23 +176,33 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
                       <td key={k} className="border border-slate-300 p-1">
                         <input
                           inputMode="decimal"
-                          aria-label={`${s.name} ${k < 2 ? "half yearly" : "annual"} ${k % 2 ? "II Pract." : "I"} marks`}
+                          aria-label={`${s.name} ${k < 2 ? "half yearly" : "annual"} ${
+                            k % 2 ? "II Pract." : "I"
+                          } marks`}
                           {...register(`marks.${s.id}.${k}`)}
                           className={`${cellCls} ${
-                            over || bad ? "border-red-500 bg-red-50" : "border-slate-300"
+                            over || bad ? "border-red-500 bg-red-50 text-red-900" : "border-slate-300"
                           }`}
                         />
                       </td>
                     );
                   })}
-                  <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-center">
+                  <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-center font-semibold">
                     {row?.used ? (
                       <>
-                        {formatNumber(row.grandMO)} / {formatNumber(row.grandMM)}
+                        {isStage2 ? (
+                          <>
+                            {formatNumber(row.grandMO)} / {formatNumber(row.grandMM)}
+                          </>
+                        ) : (
+                          <>
+                            {formatNumber(row.hyTotal)} / {formatNumber(row.hyMM)}
+                          </>
+                        )}
                         {!row.ok && <span className="font-bold text-red-600"> ✕</span>}
                       </>
                     ) : (
-                      ""
+                      "-"
                     )}
                   </td>
                 </tr>
@@ -178,15 +212,31 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
         </table>
       </div>
 
-      <div className="rounded-lg bg-[var(--color-ink)]/10 px-3 py-2 font-semibold" aria-live="polite">
+      {/* Live Preview Summary Bar */}
+      <div className="rounded-lg bg-[var(--color-ink)]/10 p-3 font-semibold text-slate-800" aria-live="polite">
         {result.any ? (
-          <>
-            Total {formatNumber(result.totals.grandMO)} / {formatNumber(result.totals.grandMM)} ·{" "}
-            {formatNumber(result.percentage)}% · Division: {result.division} · Position:{" "}
-            {result.position || "-"} · Result: <span className={resultClass}>{result.result}</span>
-          </>
+          <div>
+            <span className="text-xs uppercase tracking-wide text-slate-500 block mb-1">
+              Live Preview ({isStage2 ? "Stage 2: Combined G. Total" : "Stage 1: Half Yearly"}):
+            </span>
+            {isStage2 ? (
+              <>
+                Total: {formatNumber(result.totals.grandMO)} / {formatNumber(result.totals.grandMM)} ·{" "}
+                {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
+                <span className={resultClass}>{result.result}</span>
+              </>
+            ) : (
+              <>
+                Total: {formatNumber(result.totals.hyTotal)} / {formatNumber(result.totals.hyMM)} ·{" "}
+                {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
+                <span className={resultClass}>{result.result}</span>
+              </>
+            )}
+          </div>
         ) : (
-          "Enter annual marks to see the result."
+          <span className="text-slate-500 font-normal text-sm">
+            Enter marks above to preview totals, percentage, division, and result.
+          </span>
         )}
       </div>
 
@@ -198,24 +248,28 @@ export default function MarksEntry({ student, subjects, passPercent, allStudents
         </ul>
       )}
 
-      <p className="text-sm text-slate-500">
-        Column II is the practical mark and can stay empty. A red box means the marks are more than
-        M.M. The <b>result uses annual marks only</b>; half-yearly marks are just kept on record and
-        printed on the card.
+      <p className="text-xs text-slate-500">
+        • Column II is practical mark (can remain empty).
+        <br />
+        • Red box indicates entered marks exceed subject M.M.
+        <br />
+        • Position in Class is filled manually on the printed report card.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg bg-[var(--color-ink)] px-5 py-2 font-semibold text-white disabled:opacity-50"
+          className="rounded-lg bg-[var(--color-ink)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
-          Save marks / अंक सहेजें
+          {isSubmitting ? "Saving…" : "Save marks / अंक सहेजें"}
         </button>
         {message.text && (
           <span
             role="status"
-            className={`text-sm font-semibold ${message.type === "ok" ? "text-green-700" : "text-red-600"}`}
+            className={`text-sm font-semibold ${
+              message.type === "ok" ? "text-green-700" : "text-red-600"
+            }`}
           >
             {message.text}
           </span>

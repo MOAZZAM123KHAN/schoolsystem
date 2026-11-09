@@ -1,10 +1,7 @@
-// 3 sample students so you can see the app working straight away.
-// They are clearly marked SAMPLE (name starts with "SAMPLE" and isSample is true).
-// Delete them any time from the Students page.
-//
-// Marks are stored per subject id as [halfYearly I, halfYearly II Pract., annual I, annual II Pract.].
-// Subject ids s1..s6 match the default subjects in settingsService.
-// Half-yearly marks are stored for reference only; results use annual marks only.
+// 3 sample students demonstrating both Stage 1 and Stage 2:
+// - Aarav Kumar: Stage 2 (Both Half Yearly and Annual entered -> First division PASS)
+// - Sana Khan: Stage 1 (Half Yearly only -> Stage 1 results, Annual/G.Total columns empty)
+// - Rohit Yadav: Stage 2 (Fails English G. Total -> FAIL)
 
 const base = {
   village: "MANI KALAN",
@@ -26,7 +23,7 @@ export const sampleStudents = [
     roll: "01",
     dob: "2011-05-14",
     sr: "S-1001",
-    // Passes every subject, strong result (First division)
+    // Stage 2: Both exams entered (First division PASS)
     marks: {
       s1: ["40", "", "72", ""],
       s2: ["35", "", "68", ""],
@@ -46,14 +43,14 @@ export const sampleStudents = [
     roll: "02",
     dob: "2011-09-02",
     sr: "S-1002",
-    // Passes every subject, middling result (Second division)
+    // Stage 1: Half-Yearly only (Annual and G. Total empty on card)
     marks: {
-      s1: ["30", "", "52", ""],
-      s2: ["28", "", "49", ""],
-      s3: ["33", "", "55", ""],
-      s4: ["25", "", "47", ""],
-      s5: ["31", "", "51", ""],
-      s6: ["27", "", "48", ""],
+      s1: ["38", "25", "", ""],
+      s2: ["35", "25", "", ""],
+      s3: ["40", "30", "", ""],
+      s4: ["32", "20", "", ""],
+      s5: ["36", "24", "", ""],
+      s6: ["30", "20", "", ""],
     },
   },
   {
@@ -66,7 +63,7 @@ export const sampleStudents = [
     roll: "01",
     dob: "2010-12-21",
     sr: "S-1003",
-    // Fails English (annual 20 of 100), so the result is FAIL
+    // Stage 2: Fails English G. Total (< 33% of 200 = 66) -> Result FAIL
     marks: {
       s1: ["36", "", "60", ""],
       s2: ["12", "", "20", ""],
@@ -77,4 +74,3 @@ export const sampleStudents = [
     },
   },
 ];
-
