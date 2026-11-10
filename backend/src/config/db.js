@@ -2,10 +2,12 @@ const dns = require("dns");
 const mongoose = require("mongoose");
 
 // Fix for Windows/ISP DNS failing to resolve MongoDB Atlas SRV records (querySrv ECONNREFUSED)
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch {
-  // Fall back to default system DNS if setServers is unavailable
+if (!process.env.VERCEL) {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch {
+    // Fall back to default system DNS if setServers is unavailable
+  }
 }
 
 let isConnecting = false;
