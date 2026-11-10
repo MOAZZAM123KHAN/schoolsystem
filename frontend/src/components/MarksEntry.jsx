@@ -77,7 +77,7 @@ export default function MarksEntry({ student, subjects, passPercent, onSave }) {
   } = useForm({ resolver: zodResolver(schema), defaultValues: { marks: defaultMarks } });
 
   // Live recalculation on every keystroke
-  const live = watch("marks");
+  const live = watch("marks") || defaultMarks;
   const liveStudent = { ...student, marks: live };
   const result = calculateStudent(liveStudent, subjects, passPercent);
   const isStage2 = result.stage === 2;
