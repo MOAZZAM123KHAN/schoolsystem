@@ -18,6 +18,7 @@ const schoolSchema = new mongoose.Schema(
     session: { type: String, default: "2026-27" },
     pass: { type: Number, default: 33 },
     logo: { type: String, default: "" },
+    showPractical: { type: Boolean, default: true },
   },
   { _id: false }
 );
