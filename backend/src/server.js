@@ -40,7 +40,9 @@ async function ensureDb() {
       return false;
     })();
   }
-  return dbInitPromise;
+  const connected = await dbInitPromise;
+  if (!connected) dbInitPromise = null;
+  return connected;
 }
 
 // Health check endpoint (always accessible)
