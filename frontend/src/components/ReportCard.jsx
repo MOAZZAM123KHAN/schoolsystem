@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import "./reportCard.css";
+import DEFAULT_LOGO from "../assets/logo";
 import { formatNumber, fullResult, isFilled } from "../lib/calculations";
 
 // Column widths copied from the original card (mm)
@@ -98,7 +99,9 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
       <div className="strip thin" />
 
       <div className="hd">
-        {school.logo ? <img src={school.logo} alt="" /> : null}
+        {school.logo || DEFAULT_LOGO ? (
+          <img src={school.logo || DEFAULT_LOGO} alt="School logo" />
+        ) : null}
         <div className="t">
           <span className="sc-name" ref={nameRef}>
             {school.name}

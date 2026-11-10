@@ -72,18 +72,26 @@ When backend starts and connects to MongoDB, it automatically seeds:
 
 ## 4. Marks & Calculation Rules
 
-- **Half Yearly marks are stored only**: Kept for record and printed on the card exactly as entered. Never used in calculating totals, percentages, division, ranks, or pass/fail.
-- **Annual marks only**: Annual totals, Grand Total, Percentage, Division, and Result are calculated strictly from Annual marks.
-- **Pass mark**: 33% in every annual subject (customizable in School Settings).
+### Two-Stage Marks System:
+- **Stage 1 (Half Yearly only)**:
+  - Active when only Half Yearly marks (I and/or II Pract.) are entered across all subjects.
+  - Totals, Percentage, Division, and Result (PASS/FAIL) are calculated strictly from Half Yearly marks.
+  - Annual Exam and G. Total columns remain empty on the printed report card.
+- **Stage 2 (Annual / Combined)**:
+  - Active when at least one Annual mark is entered.
+  - G. Total M.M. = Half Yearly M.M. + Annual M.M.
+  - G. Total M.O. = Half Yearly Obtained + Annual Obtained.
+  - Totals, Percentage, Division, and Result (PASS/FAIL) are calculated from G. Total.
+- **Pass mark**: 33% in every subject (customizable in School Settings). Stage 1 checks against Half Yearly M.M., Stage 2 checks against G. Total M.M.
 - **Division**: First ≥ 60%, Second ≥ 45%, Third otherwise. Any subject failing makes the final result FAIL.
-- **Position in Class**: Rank among passed students in the same class.
+- **Position in Class**: Kept blank for manual handwriting on the physical report card.
 
 ---
 
 ## 5. Sample Data Included
 
-| Student | Class | Result |
-|---|---|---|
-| **SAMPLE - Aarav Kumar** | 9TH | 1st Position, First Division, PASS |
-| **SAMPLE - Sana Khan** | 9TH | 2nd Position, Second Division, PASS |
-| **SAMPLE - Rohit Yadav** | 10TH | Fails English (<33%), FAIL |
+| Student | Class | Result | Stage |
+|---|---|---|---|
+| **SAMPLE - Aarav Kumar** | 9TH | 1st Division, PASS | Stage 2 (Combined Half Yearly + Annual) |
+| **SAMPLE - Sana Khan** | 9TH | 1st Division, PASS | Stage 1 (Half Yearly only, Annual empty) |
+| **SAMPLE - Rohit Yadav** | 10TH | Fails English (<33%), FAIL | Stage 2 (Annual entered) |

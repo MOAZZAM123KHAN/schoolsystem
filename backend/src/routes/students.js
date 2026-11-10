@@ -1,10 +1,18 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Student = require("../models/Student");
 const requireAuth = require("../middleware/auth");
 
 const router = express.Router();
 
 router.use(requireAuth);
+
+router.param("id", (req, res, next, id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: "Student not found." });
+  }
+  next();
+});
 
 // GET /api/students
 router.get("/", async (req, res, next) => {
