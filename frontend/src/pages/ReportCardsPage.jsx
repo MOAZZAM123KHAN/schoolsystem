@@ -18,6 +18,7 @@ export default function ReportCardsPage() {
   const [settings, setSettings] = useState(null);
   const [cls, setCls] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [showPractical, setShowPractical] = useState(true);
   const [job, setJob] = useState(null); // { type: "pdf" | "print", list, filename }
   const [error, setError] = useState("");
   const hostRef = useRef(null);
@@ -27,6 +28,9 @@ export default function ReportCardsPage() {
       .then(([st, se]) => {
         setStudents(st);
         setSettings(se);
+        if (se.school?.showPractical !== undefined) {
+          setShowPractical(se.school.showPractical);
+        }
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -131,6 +135,18 @@ export default function ReportCardsPage() {
           </div>
         </div>
 
+        <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+          <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-800">
+            <input
+              type="checkbox"
+              checked={showPractical}
+              onChange={(e) => setShowPractical(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-[var(--color-ink)] focus:ring-[var(--color-ink)]"
+            />
+            <span>Include Practical Marks (II Pract.) on Report Card / रिपोर्ट कार्ड पर प्रैक्टिकल (II Pract.) दिखाएं</span>
+          </label>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <button
             disabled={busy || !selected}
@@ -178,6 +194,7 @@ export default function ReportCardsPage() {
           subjects={settings.subjects}
           school={settings.school}
           allStudents={students}
+          showPractical={showPractical}
         />
       </div>
 
@@ -192,6 +209,7 @@ export default function ReportCardsPage() {
                 subjects={settings.subjects}
                 school={settings.school}
                 allStudents={students}
+                showPractical={showPractical}
               />
             ))}
           </div>,

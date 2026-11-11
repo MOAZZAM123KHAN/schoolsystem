@@ -3,8 +3,11 @@ import "./reportCard.css";
 import DEFAULT_LOGO from "../assets/logo";
 import { formatNumber, fullResult, isFilled } from "../lib/calculations";
 
-// Column widths copied from the original card (mm)
-const COLS = [33, 12, 15, 15, 15, 12, 15, 15, 15, 13, 15, 23];
+// Column widths (mm)
+// Full 12-column card including practical (II Pract.)
+const COLS_WITH_PRACTICAL = [33, 12, 15, 15, 15, 12, 15, 15, 15, 13, 15, 23];
+// 10-column card without practical (II Pract.) — widths redistributed across subjects and marks
+const COLS_WITHOUT_PRACTICAL = [42, 13, 18, 18, 13, 18, 18, 15, 18, 25];
 
 /** "2011-05-14" -> "14-05-2011" */
 function formatDate(d) {
@@ -43,8 +46,18 @@ function Field({ label, value, wide }) {
  *     td.mm (normal font weight, light grey #777).
  *   - Obtained marks and their totals use td.n (dark and bold).
  */
-export default function ReportCard({ student, subjects, school, allStudents }) {
+export default function ReportCard({
+  student,
+  subjects,
+  school,
+  allStudents,
+  showPractical,
+}) {
   const nameRef = useRef(null);
+
+  const hasPractical =
+    showPractical !== undefined ? Boolean(showPractical) : school?.showPractical !== false;
+  const cols = hasPractical ? COLS_WITH_PRACTICAL : COLS_WITHOUT_PRACTICAL;
 
   // Shrink a long school name until it fits on one line
   useLayoutEffect(() => {
@@ -144,7 +157,7 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
 
       <table>
         <colgroup>
-          {COLS.map((w, i) => (
+          {cols.map((w, i) => (
             <col key={i} style={{ width: `${w}mm` }} />
           ))}
         </colgroup>
@@ -153,10 +166,10 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
             <th className="hr" rowSpan={2}>
               Subject
             </th>
-            <th className="hb" colSpan={4}>
+            <th className="hb" colSpan={hasPractical ? 4 : 3}>
               Half Yearly Exam.
             </th>
-            <th className="hb" colSpan={4}>
+            <th className="hb" colSpan={hasPractical ? 4 : 3}>
               Annual Exam.
             </th>
             <th className="hb" colSpan={2}>
@@ -169,19 +182,23 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
           <tr>
             <th className="hs">M.M.</th>
             <th className="hs">I</th>
-            <th className="hs">
-              II
-              <br />
-              Pract.
-            </th>
+            {hasPractical && (
+              <th className="hs">
+                II
+                <br />
+                Pract.
+              </th>
+            )}
             <th className="hs">Total</th>
             <th className="hs">M.M.</th>
             <th className="hs">I</th>
-            <th className="hs">
-              II
-              <br />
-              Pract.
-            </th>
+            {hasPractical && (
+              <th className="hs">
+                II
+                <br />
+                Pract.
+              </th>
+            )}
             <th className="hs">Total</th>
             <th className="hs">M.M.</th>
             <th className="hs">M.O.</th>
@@ -202,13 +219,13 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
                 {/* Half Yearly columns */}
                 <td className="mm">{row.hasHy ? row.subject.hy : ""}</td>
                 <td className="n">{row.hasHy ? hyI : ""}</td>
-                <td className="n">{row.hasHy ? hyII : ""}</td>
+                {hasPractical && <td className="n">{row.hasHy ? hyII : ""}</td>}
                 <td className="n">{row.hasHy ? formatNumber(row.hyTotal) : ""}</td>
 
                 {/* Annual columns (empty in Stage 1) */}
                 <td className="mm">{isStage2 && row.hasAnnual ? row.subject.an : ""}</td>
                 <td className="n">{isStage2 && row.hasAnnual ? anI : ""}</td>
-                <td className="n">{isStage2 && row.hasAnnual ? anII : ""}</td>
+                {hasPractical && <td className="n">{isStage2 && row.hasAnnual ? anII : ""}</td>}
                 <td className="n">{isStage2 && row.hasAnnual ? formatNumber(row.annualTotal) : ""}</td>
 
                 {/* G. Total columns (empty in Stage 1) */}
@@ -225,13 +242,13 @@ export default function ReportCard({ student, subjects, school, allStudents }) {
             {/* Half Yearly Totals */}
             <td className="mm">{r.any ? formatNumber(r.totals.hyMM) : ""}</td>
             <td className="n">{r.any ? formatNumber(r.totals.hyI) : ""}</td>
-            <td className="n">{r.any ? formatNumber(r.totals.hyII) : ""}</td>
+            {hasPractical && <td className="n">{r.any ? formatNumber(r.totals.hyII) : ""}</td>}
             <td className="n">{r.any ? formatNumber(r.totals.hyTotal) : ""}</td>
 
             {/* Annual Totals (empty in Stage 1) */}
             <td className="mm">{isStage2 && r.any ? formatNumber(r.totals.annualMM) : ""}</td>
             <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualI) : ""}</td>
-            <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualII) : ""}</td>
+            {hasPractical && <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualII) : ""}</td>}
             <td className="n">{isStage2 && r.any ? formatNumber(r.totals.annualTotal) : ""}</td>
 
             {/* G. Total Totals (empty in Stage 1) */}

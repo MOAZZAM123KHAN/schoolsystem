@@ -13,6 +13,7 @@ const schema = z.object({
     .number({ error: "Enter a number." })
     .min(0, "Must be 0 or more.")
     .max(100, "Must be 100 or less."),
+  showPractical: z.boolean().optional(),
 });
 
 const inputCls =
@@ -39,6 +40,7 @@ export default function SchoolSettings({ school, onSave }) {
       title: school.title,
       session: school.session,
       pass: school.pass,
+      showPractical: school.showPractical !== false,
     },
   });
 
@@ -91,6 +93,18 @@ export default function SchoolSettings({ school, onSave }) {
           inputMode: "decimal",
           step: "any",
         })}
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <input
+          id="sc-showPractical"
+          type="checkbox"
+          {...register("showPractical")}
+          className="h-4 w-4 rounded border-slate-300 text-[var(--color-ink)] focus:ring-[var(--color-ink)]"
+        />
+        <label htmlFor="sc-showPractical" className="text-sm font-semibold text-slate-700">
+          Show Practical (II Pract.) column on Report Cards by default / रिपोर्ट कार्ड पर प्रैक्टिकल (II Pract.) दिखाएं
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
