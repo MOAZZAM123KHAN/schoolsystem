@@ -257,6 +257,43 @@ export default function ReportCard({
 
             {remarkCell(n)}
           </tr>
+
+          {/* Graded Subjects (Below Total — e.g. Arabic/Deeniyat, Computer) */}
+          {r.gradedRows && r.gradedRows.length > 0 &&
+            r.gradedRows.map((grow, idx) => {
+              const showAnnual = isStage2 && grow.hasAnnual;
+              const showGrand = isStage2 && (grow.hasHy || grow.hasAnnual);
+              return (
+                <tr key={grow.subject.id} className="grd">
+                  <td className="sb">{grow.subject.name}</td>
+
+                  {/* Half Yearly: M.M. is A.B.C., Obtained is Grade */}
+                  <td className="mm">{grow.hasHy ? "A.B.C." : ""}</td>
+                  <td className="n" colSpan={hasPractical ? 3 : 2}>
+                    {grow.hasHy ? grow.hyGrade.toUpperCase() : ""}
+                  </td>
+
+                  {/* Annual: M.M. is A.B.C., Obtained is Grade (empty in Stage 1) */}
+                  <td className="mm">{showAnnual ? "A.B.C." : ""}</td>
+                  <td className="n" colSpan={hasPractical ? 3 : 2}>
+                    {showAnnual ? grow.annualGrade.toUpperCase() : ""}
+                  </td>
+
+                  {/* Grand Total */}
+                  <td className="mm">{showGrand ? "A.B.C." : ""}</td>
+                  <td className="n">{showGrand ? grow.grandGrade.toUpperCase() : ""}</td>
+
+                  {/* Remarks cell: empty border cell matching the rest of the table */}
+                  {idx === 0 && (
+                    <td
+                      className="rm"
+                      rowSpan={r.gradedRows.length}
+                      style={{ background: "#fff" }}
+                    />
+                  )}
+                </tr>
+              );
+            })}
         </tbody>
       </table>
 

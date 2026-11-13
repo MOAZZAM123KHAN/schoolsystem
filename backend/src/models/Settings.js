@@ -6,6 +6,7 @@ const subjectSchema = new mongoose.Schema(
     name: { type: String, required: true },
     hy: { type: Number, default: 100 },
     an: { type: Number, default: 100 },
+    isGraded: { type: Boolean, default: false },
   },
   { _id: false }
 );

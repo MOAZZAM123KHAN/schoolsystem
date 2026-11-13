@@ -191,3 +191,52 @@ describe("exceedsMax warning helper", () => {
     expect(exceedsMax(["", ""], 100)).toBe(false);
   });
 });
+
+describe("Graded subjects (Below Total - Arabic/Deeniyat, Computer)", () => {
+  const mixedSubjects = [
+    { id: "sub1", name: "Hindi", hy: 100, an: 100 },
+    { id: "sub2", name: "English", hy: 100, an: 100 },
+    { id: "g1", name: "Arabic/Deeniyat", hy: 0, an: 0, isGraded: true },
+    { id: "g2", name: "Computer", hy: 0, an: 0, isGraded: true },
+  ];
+
+  it("segregates graded subjects from scholastic subjects and does not add to totals", () => {
+    const s = student("gradedStudent", {
+      sub1: ["40", "30", "45", "35"], // 70 HY, 80 AN -> 150/200
+      sub2: ["35", "25", "40", "30"], // 60 HY, 70 AN -> 130/200
+      g1: ["A", "", "A", ""],
+      g2: ["B", "", "A", ""],
+    });
+
+    const res = calculateStudent(s, mixedSubjects, 33);
+    expect(res.rows.length).toBe(2); // Only Hindi and English
+    expect(res.gradedRows.length).toBe(2); // Arabic/Deeniyat and Computer
+
+    // Graded rows contain the grade strings
+    expect(res.gradedRows[0].hyGrade).toBe("A");
+    expect(res.gradedRows[0].annualGrade).toBe("A");
+    expect(res.gradedRows[0].scale).toBe("A.B.C.");
+
+    expect(res.gradedRows[1].hyGrade).toBe("B");
+    expect(res.gradedRows[1].annualGrade).toBe("A");
+
+    // Totals only include sub1 and sub2 (total MM = 400, total MO = 280)
+    expect(res.totals.grandMM).toBe(400);
+    expect(res.totals.grandMO).toBe(280);
+    expect(res.percentage).toBe(70);
+    expect(res.result).toBe("PASS");
+  });
+
+  it("only accepts A, B, or C as valid grades", () => {
+    const s = student("gradedInvalid", {
+      sub1: ["40", "30", "", ""],
+      sub2: ["35", "25", "", ""],
+      g1: ["X", "", "", ""], // Invalid grade
+      g2: ["c", "", "", ""], // Lowercase c -> should normalize to C
+    });
+
+    const res = calculateStudent(s, mixedSubjects, 33);
+    expect(res.gradedRows[0].hyGrade).toBe(""); // Discarded
+    expect(res.gradedRows[1].hyGrade).toBe("C"); // Normalized to C
+  });
+});
