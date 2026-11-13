@@ -17,15 +17,27 @@ const markText = z
     "Marks must be a positive number or empty."
   );
 
+const gradeText = z
+  .string()
+  .refine(
+    (v) => ["", "A", "B", "C"].includes(v.trim().toUpperCase()),
+    "Grade must be A, B, or C only."
+  );
+
 function buildSchema(subjects) {
   const shape = {};
   subjects.forEach((s) => {
-    shape[s.id] = z.tuple([markText, markText, markText, markText]);
+    if (s.isGraded) {
+      shape[s.id] = z.tuple([gradeText, z.string(), gradeText, z.string()]);
+    } else {
+      shape[s.id] = z.tuple([markText, markText, markText, markText]);
+    }
   });
   return z
     .object({ marks: z.object(shape) })
     .superRefine((val, ctx) => {
       subjects.forEach((s) => {
+        if (s.isGraded) return;
         const m = val.marks[s.id] || EMPTY;
         if (exceedsMax([m[0], m[1]], s.hy)) {
           ctx.addIssue({
@@ -96,7 +108,23 @@ export default function MarksEntry({ student, subjects, passPercent, onSave }) {
   const submit = async (values) => {
     setMessage({ type: "", text: "" });
     try {
-      await onSave(values.marks);
+      const normalizedMarks = {};
+      subjects.forEach((s) => {
+        const m = values.marks[s.id] || EMPTY;
+        if (s.isGraded) {
+          const g0 = (m[0] || "").trim().toUpperCase();
+          const g2 = (m[2] || "").trim().toUpperCase();
+          normalizedMarks[s.id] = [
+            ["A", "B", "C"].includes(g0) ? g0 : "",
+            "",
+            ["A", "B", "C"].includes(g2) ? g2 : "",
+            "",
+          ];
+        } else {
+          normalizedMarks[s.id] = m;
+        }
+      });
+      await onSave(normalizedMarks);
       setMessage({ type: "ok", text: "Marks saved successfully. / अंक सहेजे गए।" });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -117,11 +145,10 @@ export default function MarksEntry({ student, subjects, passPercent, onSave }) {
           </p>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            isStage2
+          className={`rounded-full px-3 py-1 text-xs font-bold ${isStage2
               ? "bg-purple-100 text-purple-800 border border-purple-300"
               : "bg-blue-100 text-blue-800 border border-blue-300"
-          }`}
+            }`}
         >
           {isStage2 ? "Stage 2: Annual & G. Total" : "Stage 1: Half Yearly"}
         </span>
@@ -155,126 +182,187 @@ export default function MarksEntry({ student, subjects, passPercent, onSave }) {
             </tr>
           </thead>
           <tbody>
-            {subjects.map((s, rowIndex) => {
-              const row = result.rows[rowIndex];
-              const m = live[s.id] || EMPTY;
-              const hyOver = exceedsMax([m[0], m[1]], s.hy);
-              const anOver = exceedsMax([m[2], m[3]], s.an);
+            {/* Standard subjects (calculated into total) */}
+            {subjects
+              .filter((s) => !s.isGraded)
+              .map((s, rowIndex) => {
+                const row = result.rows[rowIndex];
+                const m = live[s.id] || EMPTY;
+                const hyOver = exceedsMax([m[0], m[1]], s.hy);
+                const anOver = exceedsMax([m[2], m[3]], s.an);
 
-              return (
-                <tr key={s.id} className="hover:bg-slate-50/50">
-                  <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-left">
-                    {s.name}{" "}
-                    <small className="text-slate-400">
-                      ({s.hy}+{s.an})
-                    </small>
-                  </td>
-                  {[0, 1, 2, 3].map((k) => {
-                    const over = k < 2 ? hyOver : anOver;
-                    const bad = errors.marks?.[s.id]?.[k];
-                    return (
-                      <td key={k} className="border border-slate-300 p-1">
-                        <input
-                          inputMode="decimal"
-                          aria-label={`${s.name} ${k < 2 ? "half yearly" : "annual"} ${
-                            k % 2 ? "II Pract." : "I"
-                          } marks`}
-                          {...register(`marks.${s.id}.${k}`)}
-                          className={`${cellCls} ${
-                            over || bad ? "border-red-500 bg-red-50 text-red-900" : "border-slate-300"
-                          }`}
-                        />
-                      </td>
-                    );
-                  })}
-                  <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-center font-semibold">
-                    {row?.used ? (
-                      <>
-                        {isStage2 ? (
-                          <>
-                            {formatNumber(row.grandMO)} / {formatNumber(row.grandMM)}
-                          </>
-                        ) : (
-                          <>
-                            {formatNumber(row.hyTotal)} / {formatNumber(row.hyMM)}
-                          </>
-                        )}
-                        {!row.ok && <span className="font-bold text-red-600"> ✕</span>}
-                      </>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                return (
+                  <tr key={s.id} className="hover:bg-slate-50/50">
+                    <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-left">
+                      {s.name}{" "}
+                      <small className="text-slate-400">
+                        ({s.hy}+{s.an})
+                      </small>
+                    </td>
+                    {[0, 1, 2, 3].map((k) => {
+                      const over = k < 2 ? hyOver : anOver;
+                      const bad = errors.marks?.[s.id]?.[k];
+                      return (
+                        <td key={k} className="border border-slate-300 p-1">
+                          <input
+                            inputMode="decimal"
+                            aria-label={`${s.name} ${k < 2 ? "half yearly" : "annual"} ${k % 2 ? "II Pract." : "I"
+                              } marks`}
+                            {...register(`marks.${s.id}.${k}`)}
+                            className={`${cellCls} ${over || bad ? "border-red-500 bg-red-50 text-red-900" : "border-slate-300"
+                              }`}
+                          />
+                        </td>
+                      );
+                    })}
+                    <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-center font-semibold">
+                      {row?.used ? (
+                        <>
+                          {isStage2 ? (
+                            <>
+                              {formatNumber(row.grandMO)} / {formatNumber(row.grandMM)}
+                            </>
+                          ) : (
+                            <>
+                              {formatNumber(row.hyTotal)} / {formatNumber(row.hyMM)}
+                            </>
+                          )}
+                          {!row.ok && <span className="font-bold text-red-600"> ✕</span>}
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
 
-      {/* Live Preview Summary Bar */}
-      <div className="rounded-lg bg-[var(--color-ink)]/10 p-3 font-semibold text-slate-800" aria-live="polite">
-        {result.any ? (
-          <div>
-            <span className="text-xs uppercase tracking-wide text-slate-500 block mb-1">
-              Live Preview ({isStage2 ? "Stage 2: Combined G. Total" : "Stage 1: Half Yearly"}):
-            </span>
-            {isStage2 ? (
-              <>
-                Total: {formatNumber(result.totals.grandMO)} / {formatNumber(result.totals.grandMM)} ·{" "}
-                {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
-                <span className={resultClass}>{result.result}</span>
-              </>
-            ) : (
-              <>
-                Total: {formatNumber(result.totals.hyTotal)} / {formatNumber(result.totals.hyMM)} ·{" "}
-                {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
-                <span className={resultClass}>{result.result}</span>
-              </>
+            {/* Graded subjects section (below Total, grade only) */}
+            {subjects.some((s) => s.isGraded) && (
+              <tr className="bg-amber-50 text-amber-900 font-bold">
+                <td colSpan={6} className="border border-slate-300 px-3 py-1.5 text-xs uppercase tracking-wide">
+                  Graded Subjects / ग्रेडिंग वाले विषय (Shown below Total · Grade A, B, C · Not added to total marks)
+                </td>
+              </tr>
             )}
-          </div>
-        ) : (
-          <span className="text-slate-500 font-normal text-sm">
-            Enter marks above to preview totals, percentage, division, and result.
+
+            {subjects
+              .filter((s) => s.isGraded)
+              .map((s) => {
+                const m = live[s.id] || EMPTY;
+                const currentGrade = isStage2 ? m[2] || m[0] : m[0];
+
+                return (
+                  <tr key={s.id} className="bg-amber-50/30 hover:bg-amber-50/60">
+                    <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-left font-medium">
+                      {s.name}{" "}
+                      <span className="ml-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                        Grade Only (A.B.C.)
+                      </span>
+                    </td>
+                    {/* Half Yearly Grade */}
+                    <td className="border border-slate-300 p-1" colSpan={2}>
+                      <select
+                        aria-label={`${s.name} half yearly grade`}
+                        {...register(`marks.${s.id}.0`)}
+                      className={`${cellCls} border-amber-300 font-bold bg-white cursor-pointer`}
+                      >
+                      <option value="">- Select Grade -</option>
+                      <option value="A">Grade A</option>
+                      <option value="B">Grade B</option>
+                      <option value="C">Grade C</option>
+                    </select>
+                  </td>
+                    {/* Annual Grade */ }
+                <td className="border border-slate-300 p-1" colSpan={2}>
+                      <select
+                    aria-label={`${s.name} annual grade`}
+                    {...register(`marks.${s.id}.2`)}
+                  className={`${cellCls} border-amber-300 font-bold bg-white cursor-pointer`}
+                      >
+                  <option value="">- Select Grade -</option>
+                  <option value="A">Grade A</option>
+                  <option value="B">Grade B</option>
+                  <option value="C">Grade C</option>
+                </select>
+                    </td>
+          {/* Grade Preview */}
+          <td className="whitespace-nowrap border border-slate-300 px-2 py-1 text-center font-bold text-amber-900">
+            {currentGrade ? `Grade: ${currentGrade.toUpperCase()}` : "-"}
+          </td>
+        </tr>
+        );
+              })}
+      </tbody>
+    </table>
+      </div >
+
+    {/* Live Preview Summary Bar */ }
+    < div className = "rounded-lg bg-[var(--color-ink)]/10 p-3 font-semibold text-slate-800" aria - live="polite" >
+    {
+      result.any ? (
+        <div>
+          <span className="text-xs uppercase tracking-wide text-slate-500 block mb-1">
+            Live Preview ({isStage2 ? "Stage 2: Combined G. Total" : "Stage 1: Half Yearly"}):
           </span>
-        )}
-      </div>
+          {isStage2 ? (
+            <>
+              Total: {formatNumber(result.totals.grandMO)} / {formatNumber(result.totals.grandMM)} ·{" "}
+              {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
+              <span className={resultClass}>{result.result}</span>
+            </>
+          ) : (
+            <>
+              Total: {formatNumber(result.totals.hyTotal)} / {formatNumber(result.totals.hyMM)} ·{" "}
+              {formatNumber(result.percentage)}% · Division: {result.division} · Result:{" "}
+              <span className={resultClass}>{result.result}</span>
+            </>
+          )}
+        </div>
+      ) : (
+        <span className="text-slate-500 font-normal text-sm">
+          Enter marks above to preview totals, percentage, division, and result.
+        </span>
+      )
+    }
+      </div >
 
-      {errorList.length > 0 && (
-        <ul role="alert" className="list-disc rounded-lg bg-red-50 py-2 pl-7 pr-3 text-sm text-red-700">
-          {errorList.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      )}
+  {
+    errorList.length > 0 && (
+      <ul role="alert" className="list-disc rounded-lg bg-red-50 py-2 pl-7 pr-3 text-sm text-red-700">
+        {errorList.map((e) => (
+          <li key={e}>{e}</li>
+        ))}
+      </ul>
+    )
+  }
 
-      <p className="text-xs text-slate-500">
-        • Column II is practical mark (can remain empty).
-        <br />
+    < p className = "text-xs text-slate-500" >
+        • Column II is practical mark(can remain empty).
+        < br />
         • Red box indicates entered marks exceed subject M.M.
-        <br />
+        < br />
         • Position in Class is filled manually on the printed report card.
-      </p>
+      </p >
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-[var(--color-ink)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {isSubmitting ? "Saving…" : "Save marks / अंक सहेजें"}
-        </button>
-        {message.text && (
-          <span
-            role="status"
-            className={`text-sm font-semibold ${
-              message.type === "ok" ? "text-green-700" : "text-red-600"
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="rounded-lg bg-[var(--color-ink)] px-5 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+      >
+        {isSubmitting ? "Saving…" : "Save marks / अंक सहेजें"}
+      </button>
+      {message.text && (
+        <span
+          role="status"
+          className={`text-sm font-semibold ${message.type === "ok" ? "text-green-700" : "text-red-600"
             }`}
-          >
-            {message.text}
-          </span>
-        )}
-      </div>
-    </form>
+        >
+          {message.text}
+        </span>
+      )}
+    </div>
+    </form >
   );
 }

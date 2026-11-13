@@ -76,6 +76,9 @@ export function exceedsMax(pair, maxMarks) {
  * @param {number} passPercent
  */
 export function calculateStudent(student, subjects = [], passPercent = DEFAULT_PASS_PERCENT) {
+  const scholasticSubjects = subjects.filter((s) => !s.isGraded);
+  const gradedSubjects = subjects.filter((s) => Boolean(s.isGraded));
+
   // Determine Stage: Stage 2 if ANY annual mark is entered; Stage 1 if none.
   let hasAnyAnnual = false;
   for (const sub of subjects) {
@@ -105,7 +108,7 @@ export function calculateStudent(student, subjects = [], passPercent = DEFAULT_P
   let passed = true;
   let any = false;
 
-  for (const subject of subjects) {
+  for (const subject of scholasticSubjects) {
     const m = marksOf(student, subject.id);
 
     const hasHy = isFilled(m[HALF_I]) || isFilled(m[HALF_II]);
@@ -176,6 +179,33 @@ export function calculateStudent(student, subjects = [], passPercent = DEFAULT_P
     rows.push(row);
   }
 
+  // Graded subjects (below Total) — displayed in grades (A, B, C), not added to totals
+  const gradedRows = [];
+  for (const subject of gradedSubjects) {
+    const m = marksOf(student, subject.id);
+    const hasHy = isFilled(m[HALF_I]);
+    const hasAnnual = isFilled(m[ANNUAL_I]) || isFilled(m[ANNUAL_II]);
+    const used = hasHy || hasAnnual;
+
+    let hyGrade = String(m[HALF_I] || "").trim().toUpperCase();
+    if (!["A", "B", "C"].includes(hyGrade)) hyGrade = "";
+    let annualGrade = String(m[ANNUAL_I] || "").trim().toUpperCase();
+    if (!["A", "B", "C"].includes(annualGrade)) annualGrade = "";
+    let grandGrade = String(m[ANNUAL_II] || m[HALF_II] || annualGrade || hyGrade).trim().toUpperCase();
+    if (!["A", "B", "C"].includes(grandGrade)) grandGrade = "";
+
+    gradedRows.push({
+      subject,
+      used,
+      hasHy: Boolean(hyGrade),
+      hasAnnual: Boolean(annualGrade),
+      hyGrade,
+      annualGrade,
+      grandGrade,
+      scale: "A.B.C.",
+    });
+  }
+
   // Calculate percentage and division based on active stage
   let percentage = 0;
   if (any) {
@@ -202,6 +232,7 @@ export function calculateStudent(student, subjects = [], passPercent = DEFAULT_P
   return {
     stage,
     rows,
+    gradedRows,
     totals,
     any,
     passed,

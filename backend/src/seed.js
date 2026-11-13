@@ -19,7 +19,10 @@ const DEFAULT_SUBJECTS = [
   "Drawing",
   "Science",
   "Theology",
-].map((name, i) => ({ id: `s${i + 1}`, name, hy: 100, an: 100 }));
+].map((name, i) => ({ id: `s${i + 1}`, name, hy: 100, an: 100, isGraded: false })).concat([
+  { id: "s_graded_1", name: "Arabic/Deeniyat", hy: 0, an: 0, isGraded: true },
+  { id: "s_graded_2", name: "Computer", hy: 0, an: 0, isGraded: true },
+]);
 
 const SAMPLE_STUDENTS = [
   {
@@ -43,6 +46,8 @@ const SAMPLE_STUDENTS = [
       s4: ["38", "", "70", ""],
       s5: ["45", "", "80", ""],
       s6: ["30", "", "64", ""],
+      s_graded_1: ["A", "", "A", ""],
+      s_graded_2: ["B", "", "B", ""],
     },
   },
   {
@@ -67,6 +72,8 @@ const SAMPLE_STUDENTS = [
       s4: ["32", "20", "", ""],
       s5: ["42", "28", "", ""],
       s6: ["30", "20", "", ""],
+      s_graded_1: ["A", "", "", ""],
+      s_graded_2: ["A", "", "", ""],
     },
   },
   {
@@ -90,6 +97,8 @@ const SAMPLE_STUDENTS = [
       s4: ["34", "", "61", ""],
       s5: ["29", "", "55", ""],
       s6: ["32", "", "57", ""],
+      s_graded_1: ["B", "", "B", ""],
+      s_graded_2: ["C", "", "B", ""],
     },
   },
 ];
